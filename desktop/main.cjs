@@ -25,6 +25,7 @@ let remoteSignalOrigin = '';
 let deviceIdentity = null;
 let deviceIdentityError = '';
 let deviceSessionActive = false;
+let sharedDisplayId = null;
 let savedPreferences = {};
 const defaultSignalOrigin = 'https://sanad.abouiba93.workers.dev';
 let lastNotifiedUpdate = '';
@@ -344,6 +345,11 @@ function registerControlHandlers() {
       return { ok: false, error: error.message };
     }
   });
+  ipcMain.handle('display:clear-selection', (event) => {
+    if (!isTrustedWindow(event)) return false;
+    sharedDisplayId = null;
+    return true;
+  });
   ipcMain.handle('signal:get-origin', (event) => isTrustedWindow(event) ? remoteSignalOrigin : '');
   ipcMain.handle('signal:set-origin', (event, origin) => {
     if (!isTrustedWindow(event) || (origin !== '' && !isAllowedSignalOrigin(origin))) return { ok: false };
@@ -413,9 +419,9 @@ function registerControlHandlers() {
     const ok = await enqueueInput(async () => {
       if (!grants.has(kind) || !inputReady) return;
       if (packet.action === 'move' && validNormalized(packet.x) && validNormalized(packet.y)) {
-        const display = screen.getPrimaryDisplay();
-        const x = Math.round(packet.x * Math.max(0, display.size.width * display.scaleFactor - 1));
-        const y = Math.round(packet.y * Math.max(0, display.size.height * display.scaleFactor - 1));
+        const display = screen.getAllDisplays().find((item) => String(item.id) === sharedDisplayId) || screen.getPrimaryDisplay();
+        const x = Math.round((display.bounds.x + packet.x * Math.max(0, display.bounds.width - 1)) * display.scaleFactor);
+        const y = Math.round((display.bounds.y + packet.y * Math.max(0, display.bounds.height - 1)) * display.scaleFactor);
         await mouse.setPosition(new Point(x, y));
       } else if ((packet.action === 'button-down' || packet.action === 'button-up') && ['LEFT', 'MIDDLE', 'RIGHT'].includes(packet.button)) {
         const button = Button[packet.button];
@@ -455,19 +461,32 @@ app.whenReady().then(async () => {
     try {
       const sources = await desktopCapturer.getSources({ types: ['screen'] });
       if (!sources.length) { callback({}); return; }
+      const language = savedPreferences.language || 'fr';
+      const labels = {
+        fr: { title: 'Partage d’écran', message: 'Choisissez l’écran que vous voulez partager avec la personne connectée.', detail: 'L’écran choisi ne sera visible qu’après votre accord. Arrêtez le partage depuis l’application ou avec le bouton de fin de session.', decline: 'Refuser', screen: 'Écran' },
+        en: { title: 'Screen sharing', message: 'Choose which screen to share with the connected person.', detail: 'The selected screen is visible only after you approve. Stop sharing in the app or with the end session button.', decline: 'Decline', screen: 'Screen' },
+        ar: { title: 'مشاركة الشاشة', message: 'اختار الشاشة اللي بغيتي تشارك مع الطرف المتصل.', detail: 'الشاشة المختارة غتبان غير من بعد الموافقة. تقدر توقف المشاركة من التطبيق أو زر إنهاء الجلسة.', decline: 'رفض', screen: 'شاشة' },
+      }[language] || { title: 'Screen sharing', message: 'Choose which screen to share with the connected person.', detail: 'The selected screen is visible only after you approve. Stop sharing in the app or with the end session button.', decline: 'Decline', screen: 'Screen' };
+      const screenButtons = sources.map((source, index) => `${index + 1}. ${source.name || `${labels.screen} ${index + 1}`}`);
+      const declineIndex = screenButtons.length;
       const answer = await dialog.showMessageBox(mainWindow, {
         type: 'question',
-        title: { fr: 'Partage d’écran', en: 'Screen sharing', ar: 'مشاركة الشاشة' }[savedPreferences.language || 'fr'],
-        message: { fr: 'La personne connectée demande à voir l’écran principal de cet appareil.', en: 'The connected person is requesting to view this device’s main screen.', ar: 'الطرف الآخر طلب يشوف الشاشة الرئيسية ديال هاد الجهاز.' }[savedPreferences.language || 'fr'],
-        detail: { fr: 'L’écran ne sera visible qu’après votre accord. Arrêtez le partage depuis l’application ou avec le bouton de fin de session.', en: 'The screen is visible only after you approve. Stop sharing in the app or with the end session button.', ar: 'الشاشة غتبان غير من بعد الموافقة. تقدر توقف المشاركة من التطبيق أو زر إنهاء الجلسة.' }[savedPreferences.language || 'fr'],
-        buttons: { fr: ['Partager l’écran', 'Refuser'], en: ['Share screen', 'Decline'], ar: ['مشاركة الشاشة', 'رفض'] }[savedPreferences.language || 'fr'],
-        defaultId: 1,
-        cancelId: 1,
+        title: labels.title,
+        message: labels.message,
+        detail: labels.detail,
+        buttons: [...screenButtons, labels.decline],
+        defaultId: declineIndex,
+        cancelId: declineIndex,
         noLink: true,
       });
-      const primaryDisplay = screen.getPrimaryDisplay();
-      const primarySource = sources.find((source) => source.display_id === String(primaryDisplay.id)) || sources[0];
-      callback(answer.response === 0 ? { video: primarySource, audio: 'none' } : {});
+      const selectedSource = answer.response >= 0 && answer.response < sources.length ? sources[answer.response] : null;
+      if (!selectedSource) {
+        sharedDisplayId = null;
+        callback({});
+        return;
+      }
+      sharedDisplayId = selectedSource.display_id || String(screen.getAllDisplays()[answer.response]?.id || '') || null;
+      callback({ video: selectedSource, audio: 'none' });
     } catch { callback({}); }
   });
 

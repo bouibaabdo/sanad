@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('sanadDesktop', {
   getPreferences: () => ipcRenderer.invoke('settings:get'),
   savePreferences: (settings) => ipcRenderer.invoke('settings:save', settings),
   getDeviceIdentity: () => ipcRenderer.invoke('device:get'),
+  clearSharedDisplay: () => ipcRenderer.invoke('display:clear-selection'),
   setDevicePassword: (password) => ipcRenderer.invoke('device:set-password', password),
   registerDeviceSession: (offer) => ipcRenderer.invoke('device:register', offer),
   getDeviceAnswer: () => ipcRenderer.invoke('device:answer'),

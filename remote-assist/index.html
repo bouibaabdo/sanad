@@ -20,7 +20,7 @@
           <a class="nav-item" href="#transfer"><span>⇧</span> Transfert de fichiers</a>
         </nav>
         <div class="sidebar-note"><span class="note-shield">✓</span><strong>Connexion sécurisée</strong><p>Le partage d’écran et le contrôle nécessitent votre autorisation.</p></div>
-        <div class="sidebar-bottom"><span class="online-dot"></span> Version <span id="app-version">0.2.4</span></div>
+        <div class="sidebar-bottom"><span class="online-dot"></span> Version <span id="app-version">0.2.5</span></div>
       </aside>
 
       <main id="top">
@@ -78,6 +78,11 @@
                 <button class="button primary connect-button" id="join-session" type="button">Rejoindre la session <b>→</b></button>
                 <div class="inline-status" id="join-status">Saisissez le code complet reçu de votre correspondant.</div>
               </div>
+              <section class="known-devices" aria-labelledby="known-devices-title">
+                <div class="known-devices-heading"><div><h3 id="known-devices-title">Appareils connus</h3><p>Retrouvez vos appareils récents. Les mots de passe ne sont jamais enregistrés ici.</p></div><span class="known-device-count" id="known-device-count">0</span></div>
+                <div class="known-device-save"><label class="sr-only" for="known-device-alias">Nom de l’appareil</label><input id="known-device-alias" maxlength="48" autocomplete="off" placeholder="Nom (ex. : Bureau)" /><button class="button secondary" id="save-known-device" type="button">Enregistrer l’ID saisi</button></div>
+                <div class="known-device-list" id="known-device-list" aria-live="polite"></div>
+              </section>
             </article>
           </section>
 
@@ -86,7 +91,13 @@
             <div class="display-toolbar"><label for="fit-select">Affichage</label><select id="fit-select" aria-label="Mode d’affichage"><option value="fit">Adapter à la fenêtre</option><option value="fill">Remplir la fenêtre</option><option value="native">Taille réelle</option></select><span class="toolbar-spacer"></span><button class="button secondary" id="floating-window-button" type="button">▣ Fenêtre indépendante</button><button class="button secondary" id="fullscreen-button" type="button">⛶ Plein écran</button></div>
             <div class="video-wrap" id="video-wrap"><video id="remote-video" autoplay playsinline tabindex="0"></video><div class="video-placeholder" id="video-placeholder"><span class="placeholder-icon">▣</span><strong>L’écran distant s’affichera ici</strong><small>Démarrez un partage ou rejoignez une session active</small></div></div>
             <div class="control-panel viewer-controls" id="viewer-controls" hidden><div class="control-copy"><span class="control-shield">⌖</span><div><strong>Autorisations de contrôle</strong><small id="viewer-control-status">Demandez l’autorisation à la personne devant l’appareil.</small></div></div><div class="control-options"><label><input type="checkbox" id="request-mouse" checked /> Souris</label><label><input type="checkbox" id="request-keyboard" checked /> Clavier</label></div><button class="button primary" id="request-control" type="button">Demander le contrôle</button></div>
-            <div class="control-panel host-controls" id="host-controls" hidden><div class="control-copy"><span class="control-shield">✓</span><div><strong>Autorisations accordées</strong><small id="host-control-status">Le contrôle est désactivé.</small></div></div><button class="button secondary" id="revoke-control" type="button" hidden>Révoquer l’accès</button></div>
+          <div class="control-panel host-controls" id="host-controls" hidden><div class="control-copy"><span class="control-shield">✓</span><div><strong>Autorisations accordées</strong><small id="host-control-status">Le contrôle est désactivé.</small></div></div><button class="button secondary" id="revoke-control" type="button" hidden>Révoquer l’accès</button></div>
+          </section>
+
+          <section class="chat-panel" id="chat-panel" hidden aria-labelledby="chat-title">
+            <div class="chat-heading"><div><span class="eyebrow">Conversation de session</span><h2 id="chat-title">Discussion</h2><p id="chat-status">La discussion attend l’autorisation de l’hôte.</p></div><button class="button secondary" id="chat-permission-toggle" type="button" hidden>Autoriser la discussion</button></div>
+            <div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div>
+            <form class="chat-composer" id="chat-form"><label class="sr-only" for="chat-input">Votre message</label><input id="chat-input" maxlength="1000" autocomplete="off" placeholder="Écrire un message…" disabled /><button class="button primary" id="chat-send" type="submit" disabled>Envoyer</button></form>
           </section>
 
           <section class="transfer-panel" id="transfer"><div class="transfer-heading"><div class="role-icon green">⇧</div><div><span class="eyebrow">Connexion directe chiffrée</span><h2>Transfert de fichiers</h2><p>Envoyez un fichier à l’appareil connecté. Taille maximale : 100 Mo.</p></div></div><div class="transfer-controls"><label class="button secondary file-picker" for="file-input">Choisir un fichier <span>＋</span></label><input id="file-input" type="file" hidden /><button class="button primary" id="send-file" disabled>Envoyer le fichier <b>→</b></button></div><div class="transfer-list" id="transfer-list"><div class="empty-transfer"><span>⇅</span>Aucun fichier transféré</div></div></section>

@@ -27,6 +27,11 @@ let languageObserver;
 let detachedViewerWindow = null;
 let detachedViewerReturnParent = null;
 let detachedViewerReturnSibling = null;
+let knownDevices = [];
+let chatAllowed = false;
+let chatEnabled = false;
+const chatHistory = [];
+const chatMessageTimes = [];
 
 try {
   settings = { ...settingDefaults, ...JSON.parse(localStorage.getItem('sanad-settings') || '{}') };
@@ -97,6 +102,21 @@ const phraseTranslations = {
   'Connexion directe chiffrée': ['Encrypted direct connection', 'اتصال مباشر ومشفّر'], 'Envoyez un fichier à l’appareil connecté. Taille maximale : 100 Mo.': ['Send a file to the connected device. Maximum size: 100 MB.', 'صيفط ملف للجهاز المتصل. الحجم الأقصى: 100 ميغا.'], 'Choisir un fichier': ['Choose a file', 'اختار ملف'], 'Envoyer le fichier': ['Send file', 'إرسال الملف'], 'Aucun fichier transféré': ['No files transferred', 'مازال ما تنقل حتى ملف'], '⇅ Aucun fichier transféré': ['⇅ No files transferred', '⇅ مازال ما تنقل حتى ملف'],
   'Sanad est un logiciel indépendant.': ['Sanad is independent software.', 'سند برنامج مستقل.'], 'Ne communiquez vos codes qu’aux personnes de confiance.': ['Share your codes only with people you trust.', 'شارك الرموز غير مع الناس اللي كتق فيهم.'], 'Préférences Sanad': ['Sanad preferences', 'إعدادات سند'],
   'Ces réglages sont enregistrés sur cet appareil.': ['These settings are saved on this device.', 'هاد الإعدادات كتتحفظ فهاد الجهاز.'], 'Langue': ['Language', 'اللغة'], 'Choisissez la langue de l’application.': ['Choose the application language.', 'اختار لغة التطبيق.'], 'Qualité d’image': ['Image quality', 'جودة الصورة'], 'Une qualité supérieure utilise plus de données.': ['Higher quality uses more data.', 'الجودة العالية كتستهلك إنترنت أكثر.'], 'Équilibrée · recommandée': ['Balanced · recommended', 'متوازنة · موصى بها'], 'Élevée': ['High', 'عالية'], 'Économique': ['Economy', 'اقتصادية'], 'Fréquence d’images': ['Frame rate', 'معدل الإطارات'], '15 images/s': ['15 frames/s', '15 إطار/ث'], '30 images/s': ['30 frames/s', '30 إطار/ث'], '60 images/s': ['60 frames/s', '60 إطار/ث'], 'Une fréquence élevée rend les mouvements plus fluides.': ['A higher frame rate makes motion smoother.', 'المعدل العالي كيعطي حركة أنعم.'], 'Serveur de connexion': ['Connection server', 'خادم الاتصال'], 'Collez l’adresse du site, avec ou sans /remote-assist/.': ['Paste the site address, with or without /remote-assist/.', 'لصق رابط الموقع مع أو بلا /remote-assist/.'], 'Le serveur par défaut est utilisé.': ['The default server is in use.', 'الخادم الافتراضي هو المستعمل.'], 'Mode sombre': ['Dark mode', 'الوضع الداكن'], 'Modifier l’apparence de l’application.': ['Change the app appearance.', 'بدل مظهر التطبيق.'], 'Le partage d’écran et le contrôle restent soumis à l’autorisation de la personne devant l’appareil.': ['Screen sharing and control still require approval from the person at the device.', 'مشاركة الشاشة والتحكم باقيين بموافقة صاحب الجهاز.'], 'Terminé': ['Done', 'تم'], 'Afficher le mot de passe': ['Show password', 'إظهار كلمة المرور'], 'Masquer le mot de passe': ['Hide password', 'إخفاء كلمة المرور'], 'Afficher': ['Show', 'إظهار'], 'Masquer': ['Hide', 'إخفاء'],
+  'Appareils connus': ['Known devices', 'الأجهزة المعروفة'],
+  'Retrouvez vos appareils récents. Les mots de passe ne sont jamais enregistrés ici.': ['Find your recent devices. Passwords are never saved here.', 'لقا الأجهزة اللي استعملتي مؤخراً. كلمات السر ما كتتحفظش هنا.'],
+  'Nom de l’appareil': ['Device name', 'اسم الجهاز'], 'Nom (ex. : Bureau)': ['Name (e.g. Office)', 'الاسم (مثال: المكتب)'],
+  'Enregistrer l’ID saisi': ['Save entered ID', 'حفظ المعرّف المدخل'], 'Aucun appareil enregistré pour le moment.': ['No devices saved yet.', 'مازال ما تسجل حتى جهاز.'],
+  'Récemment utilisé': ['Recently used', 'استُعمل مؤخراً'], 'Favori': ['Favorite', 'مفضّل'], 'Utiliser': ['Use', 'استعمال'], 'Supprimer': ['Remove', 'حذف'],
+  'Saisissez d’abord un ID d’appareil valide.': ['Enter a valid device ID first.', 'دخل معرّف جهاز صحيح أولا.'],
+  'Appareil enregistré. Le mot de passe reste uniquement dans votre saisie.': ['Device saved. The password stays only in your input.', 'تسجل الجهاز. كلمة السر كتبقى غير فخانة الإدخال.'],
+  'ID ajouté aux appareils récents.': ['ID added to recent devices.', 'تزاد المعرّف للأجهزة الأخيرة.'],
+  'Conversation de session': ['Session conversation', 'محادثة الجلسة'], 'Discussion': ['Chat', 'الدردشة'],
+  'La discussion attend l’autorisation de l’hôte.': ['Chat is waiting for the host’s permission.', 'الدردشة كتسنى موافقة المضيف.'],
+  'Autoriser la discussion': ['Allow chat', 'السماح بالدردشة'], 'Désactiver la discussion': ['Disable chat', 'إيقاف الدردشة'],
+  'Votre message': ['Your message', 'رسالتك'], 'Écrire un message…': ['Write a message…', 'كتب رسالة…'], 'Envoyer': ['Send', 'إرسال'],
+  'L’hôte a autorisé la discussion.': ['The host enabled chat.', 'المضيف سمح بالدردشة.'],
+  'L’hôte a désactivé la discussion.': ['The host disabled chat.', 'المضيف وقف الدردشة.'],
+  'Vous': ['You', 'أنت'], 'Correspondant': ['Partner', 'الطرف الآخر'],
 };
 
 const runtimeTranslations = {
@@ -157,6 +177,8 @@ function applyLanguage() {
   languageObserver.observe(document.body, { subtree: true, childList: true, characterData: true });
   const placeholders = { fr: 'Ex. : a1b2c3d4.ABCD…', en: 'Example: a1b2c3d4.ABCD…', ar: 'مثال: a1b2c3d4.ABCD…' };
   $('session-code-input').placeholder = placeholders[language];
+  $('known-device-alias').placeholder = localized('Nom (ex. : Bureau)', 'Name (e.g. Office)', 'الاسم (مثال: المكتب)');
+  $('chat-input').placeholder = localized('Écrire un message…', 'Write a message…', 'كتب رسالة…');
   $('workspace-search').placeholder = translatePhrase('Rechercher un appareil ou une session', language);
   $('workspace-search').setAttribute('aria-label', $('workspace-search').placeholder);
   const attributeLabels = {
@@ -173,6 +195,9 @@ function applyLanguage() {
     for (const [attribute, values] of Object.entries(attributes)) $(id).setAttribute(attribute, values[languageIndex]);
   }
   refreshDetachedViewerLabels();
+  renderKnownDevices();
+  updateChatUi();
+  renderChatHistory();
 }
 
 function setStatus(message, connected = false) {
@@ -267,11 +292,26 @@ function bindDataChannel(channel) {
   fileChannel.binaryType = 'arraybuffer';
   fileChannel.onopen = () => {
     $('send-file').disabled = !selectedFile;
+    $('chat-panel').hidden = false;
+    $('chat-permission-toggle').hidden = !isHost;
+    chatAllowed = false;
+    chatEnabled = false;
+    chatHistory.length = 0;
+    chatMessageTimes.length = 0;
+    $('chat-messages').replaceChildren();
+    $('chat-status').textContent = localized('La discussion attend l’autorisation de l’hôte.', 'Chat is waiting for the host’s permission.', 'الدردشة كتسنى موافقة المضيف.');
+    updateChatUi();
     setStatus('متصل وجاهز لنقل الملفات', true);
     if (!isHost) updateControlUi([], 'يمكنك طلب إذن التحكم من صاحب الجهاز.');
   };
   fileChannel.onclose = () => {
     $('send-file').disabled = true;
+    $('chat-panel').hidden = true;
+    chatAllowed = false;
+    chatEnabled = false;
+    chatHistory.length = 0;
+    chatMessageTimes.length = 0;
+    $('chat-messages').replaceChildren();
     if (isHost) {
       void window.sanadDesktop?.revokeControl();
       if (activeDeviceSessionId) {
@@ -288,6 +328,12 @@ function bindDataChannel(channel) {
         if (message.type === 'file-start' && typeof message.name === 'string' && message.name.length <= 255 && Number.isSafeInteger(message.size) && message.size >= 0 && message.size <= maxFileSize) {
           incomingFile = { name: message.name, size: message.size, mime: message.mime, chunks: [], received: 0 };
           if (incomingFile.size === 0) finishIncomingFile();
+        } else if (message.type === 'chat-status' && !isHost && typeof message.enabled === 'boolean') {
+          chatEnabled = message.enabled;
+          $('chat-status').textContent = localized(message.enabled ? 'L’hôte a autorisé la discussion.' : 'L’hôte a désactivé la discussion.', message.enabled ? 'The host enabled chat.' : 'The host disabled chat.', message.enabled ? 'المضيف سمح بالدردشة.' : 'المضيف وقف الدردشة.');
+          updateChatUi();
+        } else if (message.type === 'chat' && typeof message.text === 'string' && message.text.length > 0 && message.text.length <= 1000) {
+          if (((isHost && chatAllowed) || (!isHost && chatEnabled)) && acceptChatMessage()) appendChatMessage(message.text, false);
         } else if (['control-request', 'control-status', 'control-release', 'input'].includes(message.type)) {
           await handleControlMessage(message);
         } else incomingFile = null;
@@ -316,7 +362,10 @@ function makePeer() {
   peer = new RTCPeerConnection(rtcConfig);
   peer.onconnectionstatechange = () => {
     const state = peer?.connectionState;
-    if (state === 'connected') setStatus('اتصال نشط', true);
+    if (state === 'connected') {
+      setStatus('اتصال نشط', true);
+      if (!isHost && guestDeviceSession?.id) rememberDevice(guestDeviceSession.id, { used: true });
+    }
     else if (state === 'failed') setStatus('تعذر الاتصال. قد تحتاج الشبكة إلى خادم TURN.');
     else if (state === 'disconnected' || state === 'closed') setStatus('انقطع الاتصال.');
   };
@@ -543,6 +592,143 @@ $('signal-origin').addEventListener('change', async () => {
 });
 function localized(fr, en, ar) { return ({ fr, en, ar })[settings.language] || fr; }
 
+function loadKnownDevices() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('sanad-known-devices') || '[]');
+    if (!Array.isArray(stored)) return [];
+    return stored.filter((item) => item && typeof item.id === 'string' && /^[a-f0-9]{16}$/.test(item.id)
+      && (typeof item.alias === 'string' || item.alias === '') && typeof item.favorite === 'boolean')
+      .map((item) => ({ id: item.id, alias: (item.alias || item.id).slice(0, 48), favorite: item.favorite, lastUsed: Number.isFinite(item.lastUsed) ? item.lastUsed : 0 }))
+      .slice(0, 16);
+  } catch { return []; }
+}
+
+function persistKnownDevices() {
+  try { localStorage.setItem('sanad-known-devices', JSON.stringify(knownDevices.slice(0, 16))); }
+  catch { /* The list is a convenience; connection still works when storage is unavailable. */ }
+}
+
+function rememberDevice(id, { alias, favorite, used = false } = {}) {
+  if (typeof id !== 'string' || !/^[a-f0-9]{16}$/.test(id)) return;
+  const existing = knownDevices.find((device) => device.id === id);
+  const next = {
+    id,
+    alias: typeof alias === 'string' && alias.trim() ? alias.trim().slice(0, 48) : existing?.alias || id,
+    favorite: typeof favorite === 'boolean' ? favorite : existing?.favorite || false,
+    lastUsed: used ? Date.now() : existing?.lastUsed || 0,
+  };
+  knownDevices = [next, ...knownDevices.filter((device) => device.id !== id)];
+  while (knownDevices.length > 16) {
+    const candidates = knownDevices.some((device) => !device.favorite)
+      ? knownDevices.filter((device) => !device.favorite)
+      : knownDevices;
+    const oldest = [...candidates].sort((a, b) => a.lastUsed - b.lastUsed)[0];
+    knownDevices = knownDevices.filter((device) => device.id !== oldest.id);
+  }
+  persistKnownDevices();
+  renderKnownDevices();
+}
+
+function renderKnownDevices() {
+  const list = $('known-device-list');
+  if (!list) return;
+  const ordered = [...knownDevices].sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.lastUsed - a.lastUsed);
+  $('known-device-count').textContent = String(ordered.length);
+  list.replaceChildren();
+  if (!ordered.length) {
+    const empty = document.createElement('p');
+    empty.className = 'known-device-empty';
+    empty.textContent = localized('Aucun appareil enregistré pour le moment.', 'No devices saved yet.', 'مازال ما تسجل حتى جهاز.');
+    list.append(empty);
+    return;
+  }
+  for (const device of ordered) {
+    const row = document.createElement('div');
+    row.className = 'known-device-row';
+    const identity = document.createElement('div');
+    identity.className = 'known-device-identity';
+    const name = document.createElement('strong');
+    name.textContent = device.alias || device.id;
+    const identifier = document.createElement('small');
+    identifier.textContent = device.id;
+    identity.append(name, identifier);
+
+    const actions = document.createElement('div');
+    actions.className = 'known-device-actions';
+    const use = document.createElement('button');
+    use.type = 'button';
+    use.className = 'known-device-use';
+    use.dataset.knownAction = 'use';
+    use.dataset.deviceId = device.id;
+    use.textContent = localized('Utiliser', 'Use', 'استعمال');
+    const favoriteButton = document.createElement('button');
+    favoriteButton.type = 'button';
+    favoriteButton.className = 'known-device-icon';
+    favoriteButton.dataset.knownAction = 'favorite';
+    favoriteButton.dataset.deviceId = device.id;
+    favoriteButton.setAttribute('aria-pressed', String(device.favorite));
+    favoriteButton.setAttribute('aria-label', device.favorite ? localized('Retirer des favoris', 'Remove from favorites', 'حيد من المفضّلة') : localized('Ajouter aux favoris', 'Add to favorites', 'زيد للمفضّلة'));
+    favoriteButton.title = favoriteButton.getAttribute('aria-label');
+    favoriteButton.textContent = device.favorite ? '★' : '☆';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'known-device-icon';
+    remove.dataset.knownAction = 'remove';
+    remove.dataset.deviceId = device.id;
+    remove.setAttribute('aria-label', localized('Supprimer', 'Remove', 'حذف'));
+    remove.title = remove.getAttribute('aria-label');
+    remove.textContent = '×';
+    actions.append(use, favoriteButton, remove);
+    row.append(identity, actions);
+    list.append(row);
+  }
+}
+
+function updateChatUi() {
+  const allowed = isHost ? chatAllowed : chatEnabled;
+  $('chat-input').disabled = !allowed;
+  $('chat-send').disabled = !allowed;
+  $('chat-permission-toggle').setAttribute('aria-pressed', String(chatAllowed));
+  $('chat-permission-toggle').textContent = chatAllowed
+    ? localized('Désactiver la discussion', 'Disable chat', 'إيقاف الدردشة')
+    : localized('Autoriser la discussion', 'Allow chat', 'السماح بالدردشة');
+  $('chat-status').textContent = isHost
+    ? localized(chatAllowed ? 'Discussion activée.' : 'La discussion attend l’autorisation de l’hôte.', chatAllowed ? 'Chat enabled.' : 'Chat is waiting for the host’s permission.', chatAllowed ? 'الدردشة مفعّلة.' : 'الدردشة كتسنى موافقة المضيف.')
+    : localized(chatEnabled ? 'L’hôte a autorisé la discussion.' : 'La discussion attend l’autorisation de l’hôte.', chatEnabled ? 'The host enabled chat.' : 'Chat is waiting for the host’s permission.', chatEnabled ? 'المضيف سمح بالدردشة.' : 'الدردشة كتسنى موافقة المضيف.');
+}
+
+function renderChatHistory() {
+  const list = $('chat-messages');
+  list.replaceChildren();
+  for (const message of chatHistory) {
+    const entry = document.createElement('article');
+    entry.className = `chat-message ${message.sentByLocalUser ? 'is-local' : 'is-remote'}`;
+    const author = document.createElement('strong');
+    author.textContent = localized(message.sentByLocalUser ? 'Vous' : 'Correspondant', message.sentByLocalUser ? 'You' : 'Partner', message.sentByLocalUser ? 'أنت' : 'الطرف الآخر');
+    const body = document.createElement('p');
+    body.textContent = message.text;
+    entry.append(author, body);
+    list.append(entry);
+  }
+  list.scrollTop = list.scrollHeight;
+}
+
+function appendChatMessage(text, sentByLocalUser) {
+  const value = text.trim().slice(0, 1000);
+  if (!value) return;
+  chatHistory.push({ text: value, sentByLocalUser });
+  if (chatHistory.length > 100) chatHistory.shift();
+  renderChatHistory();
+}
+
+function acceptChatMessage() {
+  const now = Date.now();
+  while (chatMessageTimes.length && now - chatMessageTimes[0] >= 5000) chatMessageTimes.shift();
+  if (chatMessageTimes.length >= 30) return false;
+  chatMessageTimes.push(now);
+  return true;
+}
+
 function refreshDetachedViewerLabels() {
   if (!detachedViewerWindow || detachedViewerWindow.closed) return;
   const viewerDocument = detachedViewerWindow.document;
@@ -684,6 +870,7 @@ $('floating-window-button').addEventListener('click', async () => {
   }
   await openDetachedViewer();
 });
+knownDevices = loadKnownDevices();
 applyViewSettings();
 if (window.sanadDesktop?.isDesktop) {
   void window.sanadDesktop.getAppVersion().then((version) => {
@@ -730,7 +917,10 @@ $('start-session').addEventListener('click', async () => {
     const pc = makePeer();
     screenStream.getTracks().forEach((track) => {
       pc.addTrack(track, screenStream);
-      track.addEventListener('ended', () => setStatus('أوقفت مشاركة الشاشة.'));
+      track.addEventListener('ended', () => {
+        void window.sanadDesktop?.clearSharedDisplay();
+        setStatus('أوقفت مشاركة الشاشة.');
+      }, { once: true });
     });
     bindDataChannel(pc.createDataChannel('files'));
     const offer = await pc.createOffer();
@@ -849,6 +1039,54 @@ $('join-device-session').addEventListener('click', async () => {
   }
 });
 
+$('save-known-device').addEventListener('click', () => {
+  const id = $('device-id-input').value.trim().toLowerCase();
+  if (!/^[a-f0-9]{16}$/.test(id)) {
+    $('device-join-status').textContent = localized('Saisissez d’abord un ID d’appareil valide.', 'Enter a valid device ID first.', 'دخل معرّف جهاز صحيح أولا.');
+    return;
+  }
+  rememberDevice(id, { alias: $('known-device-alias').value, favorite: true });
+  $('known-device-alias').value = '';
+  $('device-join-status').textContent = localized('Appareil enregistré. Le mot de passe reste uniquement dans votre saisie.', 'Device saved. The password stays only in your input.', 'تسجل الجهاز. كلمة السر كتبقى غير فخانة الإدخال.');
+});
+
+$('known-device-list').addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-known-action]');
+  if (!button) return;
+  const { deviceId, knownAction } = button.dataset;
+  const device = knownDevices.find((item) => item.id === deviceId);
+  if (!device) return;
+  if (knownAction === 'use') {
+    $('device-id-input').value = device.id;
+    $('device-password-input').value = '';
+    $('device-password-input').focus();
+  } else if (knownAction === 'favorite') {
+    rememberDevice(device.id, { alias: device.alias, favorite: !device.favorite });
+  } else if (knownAction === 'remove') {
+    knownDevices = knownDevices.filter((item) => item.id !== device.id);
+    persistKnownDevices();
+    renderKnownDevices();
+  }
+});
+
+$('chat-permission-toggle').addEventListener('click', () => {
+  if (!isHost || fileChannel?.readyState !== 'open') return;
+  chatAllowed = !chatAllowed;
+  fileChannel.send(JSON.stringify({ type: 'chat-status', enabled: chatAllowed }));
+  $('chat-status').textContent = localized(chatAllowed ? 'Discussion activée.' : 'Discussion désactivée.', chatAllowed ? 'Chat enabled.' : 'Chat disabled.', chatAllowed ? 'الدردشة مفعّلة.' : 'الدردشة متوقفة.');
+  updateChatUi();
+});
+
+$('chat-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const text = $('chat-input').value.trim();
+  const allowed = isHost ? chatAllowed : chatEnabled;
+  if (!text || text.length > 1000 || !allowed || fileChannel?.readyState !== 'open') return;
+  fileChannel.send(JSON.stringify({ type: 'chat', text }));
+  appendChatMessage(text, true);
+  $('chat-input').value = '';
+});
+
 $('copy-session').addEventListener('click', () => copyText(sessionCode || '', 'host-status'));
 $('copy-device-id').addEventListener('click', () => copyText(deviceIdentity?.id || $('device-id-output').value, 'host-status'));
 $('copy-device-password').addEventListener('click', () => copyText(deviceIdentity?.password || $('device-password-output').value, 'host-status'));
@@ -885,6 +1123,7 @@ $('revoke-control').addEventListener('click', async () => {
 
 $('end-session').addEventListener('click', async () => {
   const priorCode = sessionCode;
+  await window.sanadDesktop?.clearSharedDisplay();
   if (answerPoll) clearInterval(answerPoll);
   answerPoll = null;
   if (isHost) await window.sanadDesktop?.revokeControl();

@@ -29,4 +29,4 @@ jobs:
           $package = Get-Content package.json -Raw | ConvertFrom-Json
           $artifact = "release/Sanad-Setup-$($package.version).exe"
           if (!(Test-Path $artifact)) { throw "Installer not found: $artifact" }
-          gh release create $env:GITHUB_REF_NAME $artifact --title "Sanad $env:GITHUB_REF_NAME" --notes "Sanad desktop update: separate screen viewer, refreshed remote-support controls, password rotation, and French, English, and Arabic options."
+          gh release create $env:GITHUB_REF_NAME $artifact --title "Sanad $env:GITHUB_REF_NAME" --notes "Sanad desktop update: host-selected screen sharing, recent and favorite devices, consent-controlled session chat, remote support controls, password rotation, and French, English, and Arabic options."
