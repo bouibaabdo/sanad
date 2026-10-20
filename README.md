@@ -36,6 +36,8 @@ npm run desktop:installer
 
 بعد أول نشر، يجهّز Wrangler Durable Object من نوع SQLite. تطبيق سطح المكتب يستخدم نطاق الموقع نفسه تلقائيًا بعد وضعه في الإعدادات تحت «خادم الاتصال».
 
+الواجهة تبدأ بالفرنسية، ويمكن تغييرها إلى الإنجليزية أو العربية من «Paramètres». عند نشر إصدار Desktop جديد، ينشر GitHub Actions ملف التثبيت أولًا، ثم يشغّل نشر Worker عند نشر الإصدار. أضف أسرار المستودع `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID` لتفعيل النشر الآلي إلى Cloudflare.
+
 Cloudflare Workers/Durable Objects متاحة بخطة مجانية ضمن حصص يومية محددة؛ إذا تجاوز الاستخدام الحصة المجانية تتوقف العمليات الزائدة في الخطة المجانية. اطلع على [الأسعار والحدود الحالية](https://developers.cloudflare.com/durable-objects/platform/pricing/) قبل تشغيله لمستخدمين كثيرين.
 
 ## ميزات وسلامة الاتصال

@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('sanadDesktop', {
   isDesktop: true,
+  getAppVersion: () => ipcRenderer.invoke('app:get-version'),
   getSignalOrigin: () => ipcRenderer.invoke('signal:get-origin'),
   setSignalOrigin: (origin) => ipcRenderer.invoke('signal:set-origin', origin),
   getPreferences: () => ipcRenderer.invoke('settings:get'),

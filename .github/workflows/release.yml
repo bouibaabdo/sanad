@@ -15,9 +15,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Verify tag matches app version
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($env:GITHUB_REF_NAME -ne "v$($package.version)") { throw "Tag must match package.json version ($($package.version))." }
       - run: npm run desktop:installer
       - name: Publish installer
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: gh release create $env:GITHUB_REF_NAME release/Sanad-Setup-0.2.1.exe --title "Sanad ${{ github.ref_name }}" --notes "تحديث سند: حفظ الإعدادات، إظهار معرّف الجهاز، ودعم العربية والفرنسية."
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $artifact = "release/Sanad-Setup-$($package.version).exe"
+          if (!(Test-Path $artifact)) { throw "Installer not found: $artifact" }
+          gh release create $env:GITHUB_REF_NAME $artifact --title "Sanad $env:GITHUB_REF_NAME" --notes "Sanad desktop update: French default, English and Arabic options, refreshed remote-support interface, and functional device controls."

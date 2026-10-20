@@ -1,62 +1,100 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="fr" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f4f7fb" />
-    <title>سند — مساعدة عن بُعد</title>
+    <meta name="theme-color" content="#202b8e" />
+    <title>Sanad — Assistance à distance</title>
     <link rel="stylesheet" href="/remote-assist/styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar">
-        <a class="brand" href="#top" aria-label="سند، الرئيسية">
-          <span class="brand-mark">س</span>
-          <span><strong>سند</strong><small>مساعدة عن بُعد</small></span>
+        <a class="brand" href="#top" aria-label="Sanad, accueil">
+          <span class="brand-mark">S</span>
+          <span><strong>Sanad</strong><small>Assistance à distance</small></span>
         </a>
-        <div class="side-label">مساحة العمل</div>
-        <a class="nav-item active" href="#connection"><span>⌁</span> الاتصال</a>
-        <a class="nav-item" href="#transfer"><span>⇧</span> نقل الملفات</a>
-        <div class="sidebar-note"><span class="note-shield">✓</span><strong>اتصال مباشر</strong><p>الشاشة والملفات تنتقل بين الجهازين عبر WebRTC.</p></div>
-        <div class="sidebar-bottom"><span class="online-dot"></span> نسخة تجريبية · 0.1.0</div>
+        <nav class="side-nav" aria-label="Navigation principale">
+          <a class="nav-item active" href="#connection"><span>↔</span> Téléassistance</a>
+          <a class="nav-item" href="#device-card"><span>▣</span> Cet appareil</a>
+          <a class="nav-item" href="#transfer"><span>⇧</span> Transfert de fichiers</a>
+        </nav>
+        <div class="sidebar-note"><span class="note-shield">✓</span><strong>Connexion sécurisée</strong><p>Le partage d’écran et le contrôle nécessitent votre autorisation.</p></div>
+        <div class="sidebar-bottom"><span class="online-dot"></span> Version <span id="app-version">0.2.2</span></div>
       </aside>
 
       <main id="top">
-        <header class="topbar"><div><span class="eyebrow">أداة مستقلة ومجانية</span><h1>اتصل وساعد عن بُعد</h1></div><div class="topbar-actions"><div class="topbar-status"><span class="status-dot"></span><span id="connection-label">غير متصل</span></div><button class="button secondary settings-open" id="settings-open" type="button" aria-label="الإعدادات">⚙ الإعدادات</button></div></header>
-        <section class="welcome-card" id="connection">
-          <div class="welcome-copy"><span class="eyebrow light">مشاركة الشاشة بموافقتك</span><h2>خلي المساعدة توصل ليك،<br />فينما كنت.</h2><p>شارك الشاشة مع شخص تثق به أو انضم إلى جلسته. اختيار الشاشة يبدأ من جهازك.</p></div>
-          <div class="welcome-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="screen-illustration"><span class="screen-bar"><i></i><i></i><i></i></span><span class="screen-body"><b></b><i></i><i></i></span></div><span class="floating-lock">⌑</span></div>
+        <header class="topbar">
+          <div class="topbar-title"><span class="eyebrow">Sanad · Assistance à distance</span><h1>Téléassistance</h1></div>
+          <input id="workspace-search" class="workspace-search" type="search" placeholder="Rechercher un appareil ou une session" aria-label="Rechercher un appareil ou une session" />
+          <div class="topbar-actions">
+            <div class="topbar-status"><span class="status-dot"></span><span id="connection-label">Déconnecté</span></div>
+            <button class="icon-button settings-open" id="settings-open" type="button" aria-label="Paramètres" title="Paramètres">⚙</button>
+            <span class="user-avatar" aria-label="Profil Sanad">S</span>
+          </div>
+        </header>
+
+        <div class="license-strip"><span>Assistance à distance simple, gratuite et sécurisée</span><span>Sanad · logiciel indépendant</span></div>
+
+        <section class="workspace" id="connection">
+          <div class="workspace-tabs" role="tablist" aria-label="Mode de connexion">
+            <button class="workspace-tab active" type="button" role="tab" aria-selected="true" data-connection-mode="device">ID et mot de passe</button>
+            <button class="workspace-tab" type="button" role="tab" aria-selected="false" data-connection-mode="session">Code de session</button>
+          </div>
+
+          <section class="connection-card" aria-label="Connexion à distance">
+            <article class="connection-column local-column" id="device-card">
+              <div class="column-title"><span class="column-icon">↗</span><div><h2>Autoriser le contrôle à distance</h2><p>Partagez les informations de cet appareil avec une personne de confiance.</p></div></div>
+              <div class="device-session-block" id="device-session-block" hidden>
+                <div class="credential-box">
+                  <label for="device-id-output">Votre ID Sanad</label>
+                  <div class="credential-value"><input id="device-id-output" readonly aria-label="ID Sanad de cet appareil" /><button class="copy-icon" id="copy-device-id" type="button" aria-label="Copier l’ID" title="Copier l’ID">▢</button></div>
+                  <div class="credential-divider"></div>
+                  <label for="device-password-output">Mot de passe permanent</label>
+                  <div class="credential-value"><input id="device-password-output" type="password" readonly aria-label="Mot de passe permanent" /><button class="copy-icon" id="device-password-toggle" type="button" aria-label="Afficher le mot de passe" title="Afficher le mot de passe">◉</button><button class="copy-icon" id="copy-device-password" type="button" aria-label="Copier le mot de passe" title="Copier le mot de passe">▢</button></div>
+                </div>
+                <small class="identity-help">Gardez Sanad ouvert. La connexion démarre quand vous autorisez le partage de votre écran.</small>
+              </div>
+              <p class="browser-identity-note">L’ID permanent est disponible dans l’application Sanad pour ordinateur.</p>
+              <button class="button primary start-share" id="start-session" type="button"><span>▣</span> Partager cet écran <b>→</b></button>
+              <div class="notice share-picker-note">Dans le navigateur, sélectionnez l’écran entier dans la fenêtre de partage pour éviter la barre du navigateur.</div>
+              <div class="inline-status" id="host-status">Prêt à partager votre écran.</div>
+              <div class="field-block session-output" id="session-block" hidden><label for="session-code-output">Code de session à envoyer</label><div class="credential-value"><input id="session-code-output" readonly /><button class="copy-icon" id="copy-session" type="button" aria-label="Copier le code de session">▢</button></div></div>
+            </article>
+
+            <article class="connection-column remote-column">
+              <div class="column-title"><span class="column-icon">⇄</span><div><h2>Contrôler un appareil à distance</h2><p>Saisissez l’ID et le mot de passe fournis par l’autre personne.</p></div></div>
+              <div class="mode-section" data-mode-section="device">
+                <label class="field-label" for="device-id-input">ID de l’appareil</label>
+                <input class="connect-input" id="device-id-input" autocomplete="off" placeholder="Saisir l’ID Sanad" dir="ltr" />
+                <label class="field-label" for="device-password-input">Mot de passe</label>
+                <input class="connect-input" id="device-password-input" type="password" autocomplete="current-password" placeholder="Saisir le mot de passe" dir="ltr" />
+                <button class="button primary connect-button" id="join-device-session" type="button">Se connecter <b>→</b></button>
+                <div class="inline-status" id="device-join-status">L’appareil distant doit être allumé et prêt à partager son écran.</div>
+              </div>
+              <div class="mode-section session-mode-section" data-mode-section="session" hidden>
+                <label class="field-label" for="session-code-input">Code de session</label>
+                <input class="connect-input" id="session-code-input" autocomplete="off" placeholder="Ex. : a1b2c3d4.ABCD…" dir="ltr" />
+                <button class="button primary connect-button" id="join-session" type="button">Rejoindre la session <b>→</b></button>
+                <div class="inline-status" id="join-status">Saisissez le code complet reçu de votre correspondant.</div>
+              </div>
+            </article>
+          </section>
+
+          <section class="preview-panel" aria-label="Aperçu de l’écran distant">
+            <div class="preview-head"><div><span class="eyebrow">Session en direct</span><h2 id="preview-title">Aperçu de l’écran</h2></div><div class="preview-actions"><span class="live-badge"><i></i> <span id="live-label">En attente</span></span><button class="button danger-button" id="end-session" type="button" hidden>Terminer la session</button></div></div>
+            <div class="display-toolbar"><label for="fit-select">Affichage</label><select id="fit-select" aria-label="Mode d’affichage"><option value="fit">Adapter à la fenêtre</option><option value="fill">Remplir la fenêtre</option><option value="native">Taille réelle</option></select><span class="toolbar-spacer"></span><button class="button secondary" id="floating-window-button" type="button">▣ Fenêtre flottante</button><button class="button secondary" id="fullscreen-button" type="button">⛶ Plein écran</button></div>
+            <div class="video-wrap" id="video-wrap"><video id="remote-video" autoplay playsinline tabindex="0"></video><div class="video-placeholder" id="video-placeholder"><span class="placeholder-icon">▣</span><strong>L’écran distant s’affichera ici</strong><small>Démarrez un partage ou rejoignez une session active</small></div></div>
+            <div class="control-panel viewer-controls" id="viewer-controls" hidden><div class="control-copy"><span class="control-shield">⌖</span><div><strong>Autorisations de contrôle</strong><small id="viewer-control-status">Demandez l’autorisation à la personne devant l’appareil.</small></div></div><div class="control-options"><label><input type="checkbox" id="request-mouse" checked /> Souris</label><label><input type="checkbox" id="request-keyboard" checked /> Clavier</label></div><button class="button primary" id="request-control" type="button">Demander le contrôle</button></div>
+            <div class="control-panel host-controls" id="host-controls" hidden><div class="control-copy"><span class="control-shield">✓</span><div><strong>Autorisations accordées</strong><small id="host-control-status">Le contrôle est désactivé.</small></div></div><button class="button secondary" id="revoke-control" type="button" hidden>Révoquer l’accès</button></div>
+          </section>
+
+          <section class="transfer-panel" id="transfer"><div class="transfer-heading"><div class="role-icon green">⇧</div><div><span class="eyebrow">Connexion directe chiffrée</span><h2>Transfert de fichiers</h2><p>Envoyez un fichier à l’appareil connecté. Taille maximale : 100 Mo.</p></div></div><div class="transfer-controls"><label class="button secondary file-picker" for="file-input">Choisir un fichier <span>＋</span></label><input id="file-input" type="file" hidden /><button class="button primary" id="send-file" disabled>Envoyer le fichier <b>→</b></button></div><div class="transfer-list" id="transfer-list"><div class="empty-transfer"><span>⇅</span>Aucun fichier transféré</div></div></section>
+          <footer class="footnote"><span>Sanad est un logiciel indépendant.</span><span>Ne communiquez vos codes qu’aux personnes de confiance.</span></footer>
         </section>
-
-        <div class="section-heading"><div><span class="eyebrow">ابدأ جلسة جديدة</span><h2>كيف تريد الاتصال؟</h2></div><span class="step-chip"><b>01</b> اختيار الدور</span></div>
-        <section class="role-grid">
-          <article class="role-card host-card">
-            <div class="role-icon purple">▣</div><span class="card-kicker">أنت تقدم المساعدة</span><h3>شارك شاشتك</h3><p>اختر نافذة أو شاشة كاملة، ثم أرسل رمز الجلسة للطرف الآخر.</p>
-            <button class="button primary" id="start-session"><span>▣</span> ابدأ مشاركة الشاشة <b>←</b></button>
-            <div class="notice share-picker-note">باش مايبانش شريط <span dir="ltr">«Partage de l’onglet»</span> ديال المتصفح، اختار الشاشة كاملة من نافذة المشاركة، أو شغّل تطبيق سند لسطح المكتب. المتصفح هو اللي كيتحكم فهاد الشريط.</div>
-            <div class="inline-status" id="host-status">ستظهر معاينة الشاشة بعد الموافقة.</div>
-            <div class="field-block" id="session-block" hidden><label for="session-code-output">رمز الجلسة — أرسله للطرف الآخر</label><input id="session-code-output" readonly /><button class="button secondary" id="copy-session" type="button">نسخ رمز الجلسة</button></div>
-            <div class="field-block device-session-block" id="device-session-block" hidden><label for="device-id-output">المعرّف الثابت ديال هاد الجهاز</label><input id="device-id-output" readonly /><button class="button secondary" id="copy-device-id" type="button">نسخ المعرّف</button><label for="device-password-output">كلمة المرور الثابتة — شاركها مع الشخص الموثوق</label><div class="password-row"><input id="device-password-output" type="password" readonly /><button class="button secondary" id="device-password-toggle" type="button">إظهار</button></div><button class="button secondary" id="copy-device-password" type="button">نسخ كلمة المرور</button><small class="identity-help">باش يتصل بك شي حد، خلي التطبيق خدام واضغط «ابدأ مشاركة الشاشة»، ومن بعد يقدر يدخل المعرّف وكلمة المرور عندو.</small></div>
-          </article>
-          <article class="role-card join-card">
-            <div class="role-icon blue">↗</div><span class="card-kicker">أنت تتلقى المساعدة</span><h3>انضم إلى جلسة</h3><p>ألصق رمز الجلسة الذي وصلك. ستظهر الشاشة بعد اكتمال الاتصال.</p>
-            <div class="field-block"><label for="session-code-input">رمز الجلسة</label><input id="session-code-input" autocomplete="off" placeholder="مثال: a1b2c3d4.ABCD…" /><button class="button primary" id="join-session" type="button">انضم للجلسة <b>←</b></button></div>
-            <details class="device-login"><summary>الدخول بمعرّف الجهاز وكلمة المرور الثابتة</summary><div class="field-block"><label for="device-id-input">معرّف الجهاز</label><input id="device-id-input" autocomplete="off" placeholder="16 رقمًا/حرفًا" dir="ltr" /><label for="device-password-input">كلمة المرور</label><input id="device-password-input" type="password" autocomplete="current-password" /><button class="button primary" id="join-device-session" type="button">اتصل بالجهاز <b>←</b></button><div class="inline-status" id="device-join-status">خاص الجهاز يكون مشغّل سند ومشارك الشاشة.</div></div></details>
-            <div class="inline-status" id="join-status">لا تحتاج إلى إنشاء حساب.</div>
-          </article>
-        </section>
-
-        <section class="preview-panel" aria-label="معاينة الشاشة"><div class="preview-head"><div><span class="eyebrow">البث المباشر</span><h2 id="preview-title">معاينة الشاشة</h2></div><div class="preview-actions"><span class="live-badge"><i></i> <span id="live-label">بانتظار المشاركة</span></span><button class="button secondary" id="end-session" type="button" hidden>إنهاء الجلسة</button></div></div><div class="display-toolbar"><label for="fit-select">عرض الشاشة</label><select id="fit-select" aria-label="طريقة عرض الشاشة"><option value="fit">ملاءمة النافذة</option><option value="fill">ملء النافذة</option><option value="native">الحجم الأصلي</option></select><span class="toolbar-spacer"></span><button class="button secondary" id="floating-window-button" type="button">▣ نافذة عائمة</button><button class="button secondary" id="fullscreen-button" type="button">⛶ ملء الشاشة</button></div><div class="video-wrap" id="video-wrap"><video id="remote-video" autoplay playsinline tabindex="0"></video><div class="video-placeholder" id="video-placeholder"><span class="placeholder-icon">▣</span><strong>الشاشة ستظهر هنا</strong><small>ابدأ مشاركة الشاشة أو انضم إلى جلسة نشطة</small></div></div>
-          <div class="control-panel viewer-controls" id="viewer-controls" hidden><div class="control-copy"><span class="control-shield">⌖</span><div><strong>التحكم في الجهاز</strong><small id="viewer-control-status">طلب الإذن من صاحب الجهاز لتبدأ.</small></div></div><div class="control-options"><label><input type="checkbox" id="request-mouse" checked /> الفأرة</label><label><input type="checkbox" id="request-keyboard" checked /> لوحة المفاتيح</label></div><button class="button primary" id="request-control" type="button">طلب التحكم</button></div>
-          <div class="control-panel host-controls" id="host-controls" hidden><div class="control-copy"><span class="control-shield">✓</span><div><strong>صلاحيات التحكم</strong><small id="host-control-status">التحكم غير مسموح.</small></div></div><button class="button secondary" id="revoke-control" type="button" hidden>إيقاف التحكم</button></div>
-        </section>
-
-        <section class="transfer-panel" id="transfer"><div class="transfer-heading"><div class="role-icon green">⇧</div><div><span class="eyebrow">مباشرة بين الجهازين</span><h2>نقل الملفات</h2><p>اختر ملفًا لإرساله للطرف المتصل. النقل مشفّر عبر اتصال WebRTC.</p></div></div><div class="transfer-controls"><label class="button secondary file-picker" for="file-input">اختيار ملف <span>＋</span></label><input id="file-input" type="file" hidden /><button class="button primary" id="send-file" disabled>إرسال الملف <b>←</b></button></div><div class="transfer-list" id="transfer-list"><div class="empty-transfer"><span>⇅</span>لا توجد ملفات منقولة بعد</div></div></section>
-
-        <footer class="footnote"><span>سند مشروع مستقل ومفتوح المصدر.</span><span>لا تشارك رموز الاتصال إلا مع أشخاص تثق بهم.</span></footer>
       </main>
     </div>
-    <dialog class="settings-dialog" id="settings-dialog"><form method="dialog"><button class="dialog-close" aria-label="إغلاق">×</button><span class="eyebrow">تخصيص سند</span><h2>إعدادات الجلسة</h2><p>اختياراتك كتتحفظ على هاد الجهاز. جودة البث كتتطبق على مشاركة الشاشة الحالية أو الجاية.</p><label class="setting-field" for="language-select"><span><strong>لغة الواجهة</strong><small>اختار لغة التطبيق.</small></span><select id="language-select"><option value="ar">العربية</option><option value="fr">Français</option></select></label><label class="setting-field" for="quality-select"><span><strong>جودة الصورة</strong><small>الجودة الأعلى كتستهلك إنترنت أكثر.</small></span><select id="quality-select"><option value="balanced">متوازنة · موصى بها</option><option value="high">عالية</option><option value="economy">اقتصادية</option></select></label><label class="setting-field" for="fps-select"><span><strong>معدل الإطارات</strong><small>معدل أعلى كيعطي حركة أنعم.</small></span><select id="fps-select"><option value="15">15 إطار/ث</option><option value="30">30 إطار/ث</option><option value="60">60 إطار/ث</option></select></label><label class="setting-field signal-origin-setting" for="signal-origin"><span><strong>خادم الاتصال</strong><small>يمكنك لصق رابط الموقع كاملاً، مع أو بلا /remote-assist/.</small></span><input id="signal-origin" type="url" placeholder="https://sanad.abouiba93.workers.dev/remote-assist/" dir="ltr" autocomplete="url" /></label><small class="signal-origin-status" id="signal-origin-status">خليه فارغ للتشغيل المحلي.</small><label class="setting-toggle" for="dark-mode"><span><strong>المظهر الداكن</strong><small>تغيير ألوان الواجهة على هاد الجهاز.</small></span><input id="dark-mode" type="checkbox" /></label><div class="settings-note">مشاركة الشاشة والتحكم كيبقاو خاضعين لموافقة صاحب الجهاز.</div><button class="button primary settings-done" value="close">تم</button></form></dialog>
+    <dialog class="settings-dialog" id="settings-dialog"><form method="dialog"><button class="dialog-close" aria-label="Fermer">×</button><span class="eyebrow">Préférences Sanad</span><h2>Paramètres</h2><p>Ces réglages sont enregistrés sur cet appareil.</p><label class="setting-field" for="language-select"><span><strong>Langue</strong><small>Choisissez la langue de l’application.</small></span><select id="language-select"><option value="fr">Français</option><option value="en">English</option><option value="ar">العربية</option></select></label><label class="setting-field" for="quality-select"><span><strong>Qualité d’image</strong><small>Une qualité supérieure utilise plus de données.</small></span><select id="quality-select"><option value="balanced">Équilibrée · recommandée</option><option value="high">Élevée</option><option value="economy">Économique</option></select></label><label class="setting-field" for="fps-select"><span><strong>Fréquence d’images</strong><small>Une fréquence élevée rend les mouvements plus fluides.</small></span><select id="fps-select"><option value="15">15 images/s</option><option value="30">30 images/s</option><option value="60">60 images/s</option></select></label><label class="setting-field signal-origin-setting" for="signal-origin"><span><strong>Serveur de connexion</strong><small>Collez l’adresse du site, avec ou sans /remote-assist/.</small></span><input id="signal-origin" type="url" placeholder="https://sanad.abouiba93.workers.dev/remote-assist/" dir="ltr" autocomplete="url" /></label><small class="signal-origin-status" id="signal-origin-status">Le serveur par défaut est utilisé.</small><label class="setting-toggle" for="dark-mode"><span><strong>Mode sombre</strong><small>Modifier l’apparence de l’application.</small></span><input id="dark-mode" type="checkbox" /></label><div class="settings-note">Le partage d’écran et le contrôle restent soumis à l’autorisation de la personne devant l’appareil.</div><button class="button primary settings-done" value="close">Terminé</button></form></dialog>
     <script type="module" src="/remote-assist/main.js"></script>
   </body>
 </html>

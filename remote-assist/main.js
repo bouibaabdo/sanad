@@ -19,9 +19,11 @@ const pressedRemoteButtons = new Set();
 const pressedRemoteKeys = new Set();
 let lastRemoteMoveAt = 0;
 const maxFileSize = 100 * 1024 * 1024;
-const settingDefaults = { quality: 'balanced', fps: '30', fit: 'fit', dark: false, language: 'ar', signalOrigin: '' };
+const settingDefaults = { quality: 'balanced', fps: '30', fit: 'fit', dark: false, language: 'fr', signalOrigin: '' };
 let settings = { ...settingDefaults };
 let signalOriginReady = Promise.resolve();
+const originalTextNodes = new WeakMap();
+let languageObserver;
 
 try {
   settings = { ...settingDefaults, ...JSON.parse(localStorage.getItem('sanad-settings') || '{}') };
@@ -29,7 +31,8 @@ try {
   if (!['15', '30', '60'].includes(String(settings.fps))) settings.fps = settingDefaults.fps;
   if (!['fit', 'fill', 'native'].includes(settings.fit)) settings.fit = settingDefaults.fit;
   settings.dark = Boolean(settings.dark);
-  settings.language = settings.language === 'fr' ? 'fr' : 'ar';
+  const explicitLanguage = localStorage.getItem('sanad-language-choice');
+  settings.language = ['fr', 'en', 'ar'].includes(explicitLanguage) ? explicitLanguage : 'fr';
   settings.signalOrigin = typeof settings.signalOrigin === 'string' ? settings.signalOrigin : '';
 } catch { settings = { ...settingDefaults }; }
 
@@ -66,35 +69,101 @@ function applyViewSettings() {
   $('signal-origin-status').hidden = !window.sanadDesktop?.isDesktop;
 }
 
-const frenchText = new Map([
-  ['اتصل وساعد عن بُعد', 'Assistance à distance'], ['أداة مستقلة ومجانية', 'Outil indépendant et gratuit'],
-  ['الإعدادات', 'Paramètres'], ['غير متصل', 'Hors ligne'], ['مشاركة الشاشة بموافقتك', 'Partage d’écran avec votre accord'],
-  ['خلي المساعدة توصل ليك،', 'Laissez-nous vous aider,'], ['فينما كنت.', 'où que vous soyez.'],
-  ['ابدأ جلسة جديدة', 'Démarrer une session'], ['كيف تريد الاتصال؟', 'Comment souhaitez-vous vous connecter ?'],
-  ['أنت تقدم المساعدة', 'Vous aidez quelqu’un'], ['شارك شاشتك', 'Partager votre écran'],
-  ['ابدأ مشاركة الشاشة', 'Démarrer le partage d’écran'], ['أنت تتلقى المساعدة', 'Vous recevez de l’aide'],
-  ['انضم إلى جلسة', 'Rejoindre une session'], ['رمز الجلسة', 'Code de session'],
-  ['انضم للجلسة', 'Rejoindre la session'], ['معاينة الشاشة', 'Aperçu de l’écran'],
-  ['نقل الملفات', 'Transfert de fichiers'], ['جودة الصورة', 'Qualité d’image'], ['معدل الإطارات', 'Fréquence d’images'],
-  ['خادم الاتصال', 'Serveur de connexion'], ['المظهر الداكن', 'Mode sombre'], ['إعدادات الجلسة', 'Paramètres de session'],
-  ['تم', 'Terminé'], ['التحكم في الجهاز', 'Contrôle de l’appareil'], ['طلب التحكم', 'Demander le contrôle'],
-]);
+const phraseTranslations = {
+  'Téléassistance': ['Remote assistance', 'المساعدة عن بُعد'], 'Assistance à distance': ['Remote support', 'المساعدة عن بُعد'],
+  'Cet appareil': ['This device', 'هذا الجهاز'], 'Transfert de fichiers': ['File transfer', 'نقل الملفات'],
+  'Connexion sécurisée': ['Secure connection', 'اتصال آمن'], 'Le partage d’écran et le contrôle nécessitent votre autorisation.': ['Screen sharing and control require your permission.', 'مشاركة الشاشة والتحكم تتطلب موافقتك.'],
+  'Version': ['Version', 'الإصدار'], 'Rechercher un appareil ou une session': ['Search for a device or session', 'ابحث عن جهاز أو جلسة'],
+  'Déconnecté': ['Disconnected', 'غير متصل'], 'Paramètres': ['Settings', 'الإعدادات'], 'Assistance à distance simple, gratuite et sécurisée': ['Simple, free and secure remote support', 'مساعدة عن بُعد سهلة ومجانية وآمنة'],
+  'Sanad · logiciel indépendant': ['Sanad · independent software', 'سند · برنامج مستقل'], 'ID et mot de passe': ['ID and password', 'المعرّف وكلمة المرور'], 'Code de session': ['Session code', 'رمز الجلسة'],
+  'Autoriser le contrôle à distance': ['Allow remote control', 'السماح بالتحكم عن بُعد'], 'Partagez les informations de cet appareil avec une personne de confiance.': ['Share this device’s details with someone you trust.', 'شارك معلومات هذا الجهاز مع شخص تثق به.'],
+  'Votre ID Sanad': ['Your Sanad ID', 'معرّف سند ديالك'], 'Mot de passe permanent': ['Permanent password', 'كلمة المرور الثابتة'],
+  'Gardez Sanad ouvert. La connexion démarre quand vous autorisez le partage de votre écran.': ['Keep Sanad open. The connection starts when you allow screen sharing.', 'خلي سند خدام. الاتصال كيبدا ملي كتسمح بمشاركة الشاشة.'],
+  'L’ID permanent est disponible dans l’application Sanad pour ordinateur.': ['A permanent ID is available in the Sanad desktop app.', 'المعرّف الثابت متوفر فتطبيق سند للحاسوب.'],
+  'Partager cet écran': ['Share this screen', 'شارك هاد الشاشة'], 'Dans le navigateur, sélectionnez l’écran entier dans la fenêtre de partage pour éviter la barre du navigateur.': ['In your browser, select the entire screen in the sharing dialog to hide the browser bar.', 'فالمتصفح اختار الشاشة كاملة من نافذة المشاركة باش مايبانش شريط المتصفح.'],
+  'Prêt à partager votre écran.': ['Ready to share your screen.', 'واجد تشارك الشاشة ديالك.'], 'Code de session à envoyer': ['Session code to send', 'رمز الجلسة للإرسال'],
+  'Contrôler un appareil à distance': ['Control a remote device', 'التحكم فجهاز عن بُعد'], 'Saisissez l’ID et le mot de passe fournis par l’autre personne.': ['Enter the ID and password provided by the other person.', 'دخل المعرّف وكلمة المرور اللي عطاك الطرف الآخر.'],
+  'ID de l’appareil': ['Device ID', 'معرّف الجهاز'], 'Mot de passe': ['Password', 'كلمة المرور'], 'Saisir l’ID Sanad': ['Enter the Sanad ID', 'دخل معرّف سند'], 'Saisir le mot de passe': ['Enter the password', 'دخل كلمة المرور'],
+  'Se connecter': ['Connect', 'اتصل'], 'L’appareil distant doit être allumé et prêt à partager son écran.': ['The remote device must be on and ready to share its screen.', 'خاص الجهاز الآخر يكون خدام ومستعد يشارك الشاشة.'],
+  'Rejoindre la session': ['Join session', 'انضم للجلسة'], 'Saisissez le code complet reçu de votre correspondant.': ['Enter the full code you received.', 'دخل الرمز الكامل اللي توصّلتي به.'],
+  'Session en direct': ['Live session', 'جلسة مباشرة'], 'Aperçu de l’écran': ['Screen preview', 'معاينة الشاشة'], 'En attente': ['Waiting', 'في انتظار المشاركة'],
+  'Terminer la session': ['End session', 'إنهاء الجلسة'], 'Affichage': ['Display', 'العرض'], 'Adapter à la fenêtre': ['Fit to window', 'ملاءمة النافذة'], 'Remplir la fenêtre': ['Fill window', 'ملء النافذة'], 'Taille réelle': ['Actual size', 'الحجم الأصلي'],
+  'Fenêtre flottante': ['Floating window', 'نافذة عائمة'], '▣ Fenêtre flottante': ['▣ Floating window', '▣ نافذة عائمة'], '⛶ Plein écran': ['⛶ Full screen', '⛶ ملء الشاشة'], 'L’écran distant s’affichera ici': ['The remote screen will appear here', 'الشاشة البعيدة غادي تبان هنا'],
+  'Démarrez un partage ou rejoignez une session active': ['Start sharing or join an active session', 'بدا المشاركة أو انضم لجلسة خدامة'], 'Autorisations de contrôle': ['Control permissions', 'صلاحيات التحكم'], 'Demandez l’autorisation à la personne devant l’appareil.': ['Ask the person at the device for permission.', 'طلب الإذن من الشخص اللي قدام الجهاز.'],
+  'Souris': ['Mouse', 'الفأرة'], 'Clavier': ['Keyboard', 'لوحة المفاتيح'], 'Demander le contrôle': ['Request control', 'طلب التحكم'], 'Autorisations accordées': ['Granted permissions', 'الصلاحيات المسموحة'], 'Le contrôle est désactivé.': ['Control is disabled.', 'التحكم متوقف.'], 'Révoquer l’accès': ['Revoke access', 'إلغاء الصلاحية'],
+  'Connexion directe chiffrée': ['Encrypted direct connection', 'اتصال مباشر ومشفّر'], 'Envoyez un fichier à l’appareil connecté. Taille maximale : 100 Mo.': ['Send a file to the connected device. Maximum size: 100 MB.', 'صيفط ملف للجهاز المتصل. الحجم الأقصى: 100 ميغا.'], 'Choisir un fichier': ['Choose a file', 'اختار ملف'], 'Envoyer le fichier': ['Send file', 'إرسال الملف'], 'Aucun fichier transféré': ['No files transferred', 'مازال ما تنقل حتى ملف'], '⇅ Aucun fichier transféré': ['⇅ No files transferred', '⇅ مازال ما تنقل حتى ملف'],
+  'Sanad est un logiciel indépendant.': ['Sanad is independent software.', 'سند برنامج مستقل.'], 'Ne communiquez vos codes qu’aux personnes de confiance.': ['Share your codes only with people you trust.', 'شارك الرموز غير مع الناس اللي كتق فيهم.'], 'Préférences Sanad': ['Sanad preferences', 'إعدادات سند'],
+  'Ces réglages sont enregistrés sur cet appareil.': ['These settings are saved on this device.', 'هاد الإعدادات كتتحفظ فهاد الجهاز.'], 'Langue': ['Language', 'اللغة'], 'Choisissez la langue de l’application.': ['Choose the application language.', 'اختار لغة التطبيق.'], 'Qualité d’image': ['Image quality', 'جودة الصورة'], 'Une qualité supérieure utilise plus de données.': ['Higher quality uses more data.', 'الجودة العالية كتستهلك إنترنت أكثر.'], 'Équilibrée · recommandée': ['Balanced · recommended', 'متوازنة · موصى بها'], 'Élevée': ['High', 'عالية'], 'Économique': ['Economy', 'اقتصادية'], 'Fréquence d’images': ['Frame rate', 'معدل الإطارات'], '15 images/s': ['15 frames/s', '15 إطار/ث'], '30 images/s': ['30 frames/s', '30 إطار/ث'], '60 images/s': ['60 frames/s', '60 إطار/ث'], 'Une fréquence élevée rend les mouvements plus fluides.': ['A higher frame rate makes motion smoother.', 'المعدل العالي كيعطي حركة أنعم.'], 'Serveur de connexion': ['Connection server', 'خادم الاتصال'], 'Collez l’adresse du site, avec ou sans /remote-assist/.': ['Paste the site address, with or without /remote-assist/.', 'لصق رابط الموقع مع أو بلا /remote-assist/.'], 'Le serveur par défaut est utilisé.': ['The default server is in use.', 'الخادم الافتراضي هو المستعمل.'], 'Mode sombre': ['Dark mode', 'الوضع الداكن'], 'Modifier l’apparence de l’application.': ['Change the app appearance.', 'بدل مظهر التطبيق.'], 'Le partage d’écran et le contrôle restent soumis à l’autorisation de la personne devant l’appareil.': ['Screen sharing and control still require approval from the person at the device.', 'مشاركة الشاشة والتحكم باقيين بموافقة صاحب الجهاز.'], 'Terminé': ['Done', 'تم'], 'Afficher le mot de passe': ['Show password', 'إظهار كلمة المرور'], 'Masquer le mot de passe': ['Hide password', 'إخفاء كلمة المرور'], 'Afficher': ['Show', 'إظهار'], 'Masquer': ['Hide', 'إخفاء'],
+};
+
+const runtimeTranslations = {
+  'اتصال نشط': ['Connecté', 'Connected'], 'بانتظار المشاركة': ['En attente', 'Waiting'], 'متصل وجاهز لنقل الملفات': ['Connecté, prêt au transfert de fichiers', 'Connected and ready to transfer files'],
+  'النظام ما قدرش يطبق هاد الجودة؛ مستمر بالجودة المتاحة.': ['Impossible d’appliquer cette qualité ; la qualité disponible est conservée.', 'Could not apply this quality; continuing with the available quality.'],
+  'التحكم يحتاج إلى تطبيق سطح المكتب على الجهاز المضيف.': ['Le contrôle nécessite l’application Sanad sur l’appareil hôte.', 'Control requires the Sanad desktop app on the host device.'], 'بانتظار اختيارك للصلاحيات في نافذة التأكيد…': ['En attente de votre choix dans la fenêtre d’autorisation…', 'Waiting for your choice in the permission dialog…'], 'الشاشة المشتركة': ['Écran partagé', 'Shared screen'], 'يصل البث': ['Flux en cours de réception', 'Stream arriving'],
+  'التحكم مفعّل': ['Contrôle activé', 'Control enabled'], 'بانتظار موافقة صاحب الجهاز…': ['En attente de l’autorisation du propriétaire…', 'Waiting for the device owner’s approval…'], 'طلب التحكم': ['Demander le contrôle', 'Request control'], 'تم قبول الطرف الآخر. جارٍ الاتصال…': ['Demande acceptée. Connexion en cours…', 'Request accepted. Connecting…'], 'تم نسخ الرمز. أرسله للطرف الآخر.': ['Code copié. Envoyez-le à votre correspondant.', 'Code copied. Send it to the other person.'], 'تعذر النسخ تلقائيًا؛ حدّد الرمز وانسخه يدويًا.': ['Copie automatique impossible ; sélectionnez et copiez le code.', 'Could not copy automatically; select and copy the code.'],
+  'خليه فارغ للتشغيل المحلي.': ['Laissez vide pour une utilisation locale.', 'Leave blank for local use.'], 'تعذر تفعيل ملء الشاشة في هاد البيئة.': ['Le plein écran n’est pas disponible dans cet environnement.', 'Full screen is unavailable in this environment.'], 'خاص الشاشة توصل قبل ما تفتح النافذة العائمة.': ['Attendez la réception de l’écran avant d’ouvrir la fenêtre flottante.', 'Wait for the screen before opening the floating window.'], 'هاد النظام ما سمحش بفتح نافذة الشاشة العائمة.': ['Ce système ne permet pas la fenêtre flottante.', 'This system does not allow a floating window.'], 'التحكم غير مسموح. أي طلب سيظهر كتأكيد على هذا الجهاز.': ['Le contrôle est désactivé. Toute demande devra être confirmée sur cet appareil.', 'Control is disabled. Requests must be approved on this device.'],
+  'المعرّف ثابت لهذا الجهاز. شغّل مشاركة الشاشة، ثم أعطِ المعرّف وكلمة المرور للشخص الموثوق.': ['Cet ID est permanent. Démarrez le partage d’écran, puis communiquez l’ID et le mot de passe à une personne de confiance.', 'This ID is permanent. Start screen sharing, then give the ID and password to someone you trust.'],
+  'اختر الشاشة أو النافذة التي تريد مشاركتها…': ['Choisissez l’écran ou la fenêtre à partager…', 'Choose the screen or window to share…'], 'أرسل رمز الجلسة للطرف الآخر وانتظر الاتصال.': ['Envoyez le code de session et attendez la connexion.', 'Send the session code and wait for the connection.'], 'تم إنهاء الجلسة.': ['Session terminée.', 'Session ended.'], 'أوقفت مشاركة الشاشة.': ['Vous avez arrêté le partage d’écran.', 'You stopped screen sharing.'], 'أُرسل الرد. جارٍ إنشاء الاتصال المباشر…': ['Réponse envoyée. Connexion directe en cours…', 'Reply sent. Establishing direct connection…'], 'جارٍ الاتصال بخدمة الإشارات…': ['Connexion au service de signalisation…', 'Connecting to the signaling service…'], 'أُرسل الرد. انتظر اكتمال الاتصال مع الجهاز.': ['Réponse envoyée. Attendez la connexion à l’appareil.', 'Reply sent. Waiting for the device connection.'], 'تم التحقق من كلمة المرور. جارٍ إنشاء الاتصال…': ['Mot de passe vérifié. Connexion en cours…', 'Password verified. Connecting…'],
+  'التحكم غير مسموح.': ['Le contrôle n’est pas autorisé.', 'Control is not allowed.'], 'إيقاف التحكم': ['Arrêter le contrôle', 'Stop control'], 'تنزيل': ['Télécharger', 'Download'], 'أُرسل': ['Envoyé', 'Sent'], 'استُقبل': ['Reçu', 'Received'],
+  'تعذر الاتصال. قد تحتاج الشبكة إلى خادم TURN.': ['Connexion impossible. Le réseau peut nécessiter un serveur TURN.', 'Could not connect. The network may require a TURN server.'], 'انقطع الاتصال.': ['Connexion interrompue.', 'Connection lost.'], 'رمز الجلسة غير صالح. انسخه كاملًا من الجهاز المضيف.': ['Code de session invalide. Copiez-le en entier depuis l’appareil hôte.', 'Invalid session code. Copy the full code from the host device.'],
+  'تعذر تفعيل ملء الشاشة في هاد البيئة.': ['Le plein écran n’est pas disponible dans cet environnement.', 'Full screen is unavailable in this environment.'], 'تعذر الانضمام إلى الجلسة.': ['Impossible de rejoindre la session.', 'Could not join the session.'], 'معرّف الجهاز خاصو يكون 16 رقم أو حرف سداسي عشري.': ['L’ID de l’appareil doit contenir 16 caractères hexadécimaux.', 'The device ID must contain 16 hexadecimal characters.'], 'دخل كلمة مرور الجهاز.': ['Saisissez le mot de passe de l’appareil.', 'Enter the device password.'],
+};
+
+function translatePhrase(source, language) {
+  if (!source) return source;
+  if (runtimeTranslations[source]) {
+    if (language === 'fr') return runtimeTranslations[source][0];
+    if (language === 'en') return runtimeTranslations[source][1];
+    return source;
+  }
+  if (language === 'fr') return source;
+  return phraseTranslations[source]?.[language === 'en' ? 0 : 1] || source;
+}
+
 function applyLanguage() {
-  const isFrench = settings.language === 'fr';
-  document.documentElement.lang = isFrench ? 'fr' : 'ar';
-  document.documentElement.dir = isFrench ? 'ltr' : 'rtl';
-  document.querySelectorAll('[data-ar]').forEach((element) => {
-    const text = isFrench ? element.dataset.fr : element.dataset.ar;
-    if (text) element.textContent = text;
-  });
-  if (isFrench) {
-    for (const element of document.querySelectorAll('h1,h2,h3,.eyebrow,.card-kicker,button,label,summary,.nav-item,.sidebar-note strong')) {
-      const original = element.dataset.ar || element.textContent.trim();
-      if (!element.dataset.ar) element.dataset.ar = original;
-      if (frenchText.has(original)) element.textContent = frenchText.get(original);
+  const language = settings.language;
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+  const translateNode = (node) => {
+    if (!originalTextNodes.has(node)) originalTextNodes.set(node, node.nodeValue);
+    const source = originalTextNodes.get(node);
+    const clean = source.trim();
+    if (!clean) return;
+    const translated = translatePhrase(clean, language);
+    const value = source.replace(clean, translated);
+    if (node.nodeValue !== value) node.nodeValue = value;
+  };
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) translateNode(walker.currentNode);
+  languageObserver?.disconnect();
+  languageObserver = new MutationObserver((records) => {
+    for (const record of records) {
+      if (record.type === 'characterData') translateNode(record.target);
+      for (const node of record.addedNodes || []) {
+        if (node.nodeType === Node.TEXT_NODE) translateNode(node);
+        else if (node.nodeType === Node.ELEMENT_NODE) {
+          const childWalker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+          while (childWalker.nextNode()) translateNode(childWalker.currentNode);
+        }
+      }
     }
-  } else {
-    for (const element of document.querySelectorAll('[data-ar]')) element.textContent = element.dataset.ar;
+  });
+  languageObserver.observe(document.body, { subtree: true, childList: true, characterData: true });
+  const placeholders = { fr: 'Ex. : a1b2c3d4.ABCD…', en: 'Example: a1b2c3d4.ABCD…', ar: 'مثال: a1b2c3d4.ABCD…' };
+  $('session-code-input').placeholder = placeholders[language];
+  $('workspace-search').placeholder = translatePhrase('Rechercher un appareil ou une session', language);
+  $('workspace-search').setAttribute('aria-label', $('workspace-search').placeholder);
+  const attributeLabels = {
+    'settings-open': { 'aria-label': ['Paramètres', 'Settings', 'الإعدادات'], title: ['Paramètres', 'Settings', 'الإعدادات'] },
+    'device-id-output': { 'aria-label': ['ID Sanad de cet appareil', 'Sanad ID for this device', 'معرّف سند لهذا الجهاز'] },
+    'device-password-output': { 'aria-label': ['Mot de passe permanent', 'Permanent password', 'كلمة المرور الثابتة'] },
+    'copy-device-id': { 'aria-label': ['Copier l’ID', 'Copy ID', 'نسخ المعرّف'], title: ['Copier l’ID', 'Copy ID', 'نسخ المعرّف'] },
+    'copy-device-password': { 'aria-label': ['Copier le mot de passe', 'Copy password', 'نسخ كلمة المرور'], title: ['Copier le mot de passe', 'Copy password', 'نسخ كلمة المرور'] },
+    'copy-session': { 'aria-label': ['Copier le code de session', 'Copy session code', 'نسخ رمز الجلسة'] },
+  };
+  const languageIndex = { fr: 0, en: 1, ar: 2 }[language];
+  for (const [id, attributes] of Object.entries(attributeLabels)) {
+    for (const [attribute, values] of Object.entries(attributes)) $(id).setAttribute(attribute, values[languageIndex]);
   }
 }
 
@@ -189,7 +258,7 @@ function bindDataChannel(channel) {
   fileChannel = channel;
   fileChannel.binaryType = 'arraybuffer';
   fileChannel.onopen = () => {
-    $('send-file').disabled = false;
+    $('send-file').disabled = !selectedFile;
     setStatus('متصل وجاهز لنقل الملفات', true);
     if (!isHost) updateControlUi([], 'يمكنك طلب إذن التحكم من صاحب الجهاز.');
   };
@@ -403,10 +472,43 @@ $('dark-mode').addEventListener('change', () => {
   applyViewSettings();
 });
 $('language-select').addEventListener('change', () => {
-  settings.language = $('language-select').value === 'fr' ? 'fr' : 'ar';
+  settings.language = ['fr', 'en', 'ar'].includes($('language-select').value) ? $('language-select').value : 'fr';
+  try { localStorage.setItem('sanad-language-choice', settings.language); } catch { /* Desktop preferences are saved by the main process. */ }
   saveSettings();
   applyLanguage();
 });
+document.querySelectorAll('[data-connection-mode]').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    const mode = tab.dataset.connectionMode;
+    document.querySelectorAll('[data-connection-mode]').forEach((item) => {
+      const active = item === tab;
+      item.classList.toggle('active', active);
+      item.setAttribute('aria-selected', String(active));
+    });
+    document.querySelectorAll('[data-mode-section]').forEach((section) => {
+      section.hidden = section.dataset.modeSection !== mode;
+    });
+  });
+});
+$('workspace-search').addEventListener('input', () => {
+  const value = $('workspace-search').value.trim();
+  if (!value) return;
+  const isSession = value.includes('.') || /[^a-f\d]/i.test(value);
+  const tab = document.querySelector(`[data-connection-mode="${isSession ? 'session' : 'device'}"]`);
+  tab?.click();
+  $(isSession ? 'session-code-input' : 'device-id-input').value = value;
+});
+$('workspace-search').addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  const isSession = $('workspace-search').value.includes('.');
+  $(isSession ? 'join-session' : 'join-device-session').click();
+});
+for (const [fieldId, buttonId] of [['session-code-input', 'join-session'], ['device-id-input', 'join-device-session'], ['device-password-input', 'join-device-session']]) {
+  $(fieldId).addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); $(buttonId).click(); }
+  });
+}
 $('signal-origin').addEventListener('change', async () => {
   const value = $('signal-origin').value.trim();
   if (!value) {
@@ -453,6 +555,9 @@ $('floating-window-button').addEventListener('click', async () => {
 });
 applyViewSettings();
 if (window.sanadDesktop?.isDesktop) {
+  void window.sanadDesktop.getAppVersion().then((version) => {
+    if (/^\d+\.\d+\.\d+$/.test(version)) $('app-version').textContent = version;
+  }).catch(() => {});
   signalOriginReady = Promise.all([window.sanadDesktop.getSignalOrigin(), window.sanadDesktop.getPreferences()]).then(([origin, preferences]) => {
     const localOrigin = settings.signalOrigin;
     settings = { ...settings, ...(preferences || {}) };
@@ -471,6 +576,7 @@ if (window.sanadDesktop?.isDesktop) {
     $('device-id-output').value = identity.id;
     $('device-password-output').value = identity.password;
     $('device-session-block').hidden = false;
+    $('.browser-identity-note').hidden = true;
     $('host-status').textContent = 'المعرّف ثابت لهذا الجهاز. شغّل مشاركة الشاشة، ثم أعطِ المعرّف وكلمة المرور للشخص الموثوق.';
   }).catch(() => {});
 }
@@ -506,6 +612,7 @@ $('start-session').addEventListener('click', async () => {
         if (deviceIdentity?.ok) {
           $('device-id-output').value = deviceIdentity.id;
           $('device-password-output').value = deviceIdentity.password;
+          $('.browser-identity-note').hidden = true;
         }
       }
       if (!deviceIdentity?.ok) throw new Error(deviceIdentity?.error || 'تعذر تحميل معرّف هذا الجهاز. أعد تشغيل تطبيق سند.');
@@ -614,7 +721,8 @@ $('copy-device-password').addEventListener('click', () => copyText(deviceIdentit
 $('device-password-toggle').addEventListener('click', () => {
   const field = $('device-password-output');
   field.type = field.type === 'password' ? 'text' : 'password';
-  $('device-password-toggle').textContent = field.type === 'password' ? 'إظهار' : 'إخفاء';
+  const labels = { fr: ['Afficher', 'Masquer'], en: ['Show', 'Hide'], ar: ['إظهار', 'إخفاء'] }[settings.language];
+  $('device-password-toggle').textContent = field.type === 'password' ? labels[0] : labels[1];
 });
 $('request-control').addEventListener('click', requestPointerControl);
 $('revoke-control').addEventListener('click', async () => {
@@ -672,7 +780,9 @@ $('end-session').addEventListener('click', async () => {
 });
 $('file-input').addEventListener('change', (event) => {
   selectedFile = event.target.files?.[0] || null;
-  $('send-file').textContent = selectedFile ? `إرسال ${selectedFile.name} ←` : 'إرسال الملف ←';
+  const sendButton = $('send-file');
+  sendButton.replaceChildren(document.createTextNode(selectedFile ? `${settings.language === 'fr' ? 'Envoyer' : settings.language === 'en' ? 'Send' : 'إرسال'} ${selectedFile.name} ` : `${settings.language === 'fr' ? 'Envoyer le fichier' : settings.language === 'en' ? 'Send file' : 'إرسال الملف'} `));
+  const arrow = document.createElement('b'); arrow.textContent = '→'; sendButton.append(arrow);
   $('send-file').disabled = !selectedFile || fileChannel?.readyState !== 'open';
 });
 $('send-file').addEventListener('click', async () => {
@@ -691,7 +801,8 @@ $('send-file').addEventListener('click', async () => {
   addTransfer(file.name, file.size, null, 'أُرسل');
   selectedFile = null;
   $('file-input').value = '';
-  $('send-file').textContent = 'إرسال الملف ←';
+  $('send-file').replaceChildren(document.createTextNode(`${settings.language === 'fr' ? 'Envoyer le fichier' : settings.language === 'en' ? 'Send file' : 'إرسال الملف'} `));
+  const arrow = document.createElement('b'); arrow.textContent = '→'; $('send-file').append(arrow);
   $('send-file').disabled = true;
 });
 

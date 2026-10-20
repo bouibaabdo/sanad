@@ -27,6 +27,7 @@ let deviceIdentityError = '';
 let deviceSessionActive = false;
 let savedPreferences = {};
 const defaultSignalOrigin = 'https://sanad.abouiba93.workers.dev';
+let lastNotifiedUpdate = '';
 
 function preferencesPath() { return path.join(app.getPath('userData'), 'preferences.json'); }
 
@@ -45,7 +46,10 @@ function loadPreferences() {
     } catch { /* No server has been saved yet. */ }
   }
   if (!remoteSignalOrigin) remoteSignalOrigin = defaultSignalOrigin;
-  savedPreferences = { quality: 'balanced', fps: '30', fit: 'fit', dark: false, ...savedPreferences, signalOrigin: remoteSignalOrigin };
+  // Earlier app builds stored Arabic as the implicit default. Upgrade those
+  // installs to French; the user can still choose Arabic or English afterward.
+  if (savedPreferences.language === 'ar') savedPreferences.language = 'fr';
+  savedPreferences = { quality: 'balanced', fps: '30', fit: 'fit', dark: false, language: 'fr', ...savedPreferences, signalOrigin: remoteSignalOrigin };
 }
 
 function savePreferences(value) {
@@ -54,6 +58,7 @@ function savePreferences(value) {
     fps: ['15', '30', '60'].includes(String(value?.fps)) ? String(value.fps) : '30',
     fit: ['fit', 'fill', 'native'].includes(value?.fit) ? value.fit : 'fit',
     dark: Boolean(value?.dark),
+    language: ['fr', 'en', 'ar'].includes(value?.language) ? value.language : 'fr',
     signalOrigin: typeof value?.signalOrigin === 'string' && isAllowedSignalOrigin(value.signalOrigin) ? value.signalOrigin : '',
   };
   mkdirSync(path.dirname(preferencesPath()), { recursive: true });
@@ -198,6 +203,9 @@ const safeKeys = new Set([
   'LeftSuper', 'LeftWin', 'LeftCmd', 'RightSuper', 'RightWin', 'RightCmd', 'Space', 'Up', 'Down', 'Left', 'Right',
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
   'Num0', 'Num1', 'Num2', 'Num3', 'Num4', 'Num5', 'Num6', 'Num7', 'Num8', 'Num9',
+  'NumPad0', 'NumPad1', 'NumPad2', 'NumPad3', 'NumPad4', 'NumPad5', 'NumPad6', 'NumPad7', 'NumPad8', 'NumPad9',
+  'NumPadEqual', 'NumLock', 'Grave', 'Minus', 'Equal', 'LeftBracket', 'RightBracket', 'Backslash',
+  'Semicolon', 'Quote', 'Comma', 'Period', 'Slash',
 ]);
 
 function isTrustedWindow(event) {
@@ -245,7 +253,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 680,
     backgroundColor: '#f4f7fb',
-    title: 'سند — مساعدة عن بُعد',
+    title: 'Sanad — Assistance à distance',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -267,23 +275,34 @@ async function checkForUpdates() {
     const response = await fetch('https://sanad.abouiba93.workers.dev/remote-assist/update.json', { signal: AbortSignal.timeout(5000), cache: 'no-store' });
     if (!response.ok) return;
     const update = await response.json();
-    const current = app.getVersion().split('.').map(Number);
-    const latest = String(update.version || '').split('.').map(Number);
-    const newer = latest.length === 3 && current.length === 3 && latest.some((part, index) => Number.isInteger(part) && part > (current[index] || 0))
-      && latest.findIndex((part, index) => part !== (current[index] || 0)) >= 0
-      && latest[latest.findIndex((part, index) => part !== (current[index] || 0))] > (current[latest.findIndex((part, index) => part !== (current[index] || 0))] || 0);
-    if (!newer || typeof update.url !== 'string' || !update.url.startsWith('https://github.com/bouibaabdo/sanad/releases/download/')) return;
+    const parseVersion = (value) => typeof value === 'string' && /^\d+\.\d+\.\d+$/.test(value) ? value.split('.').map(Number) : null;
+    const current = parseVersion(app.getVersion());
+    const latest = parseVersion(update.version);
+    if (!current || !latest || latest.every((part, index) => part === current[index])) return;
+    const isNewer = latest.some((part, index) => part > current[index] && latest.slice(0, index).every((previous, previousIndex) => previous === current[previousIndex]));
+    const validUrl = typeof update.url === 'string' && /^https:\/\/github\.com\/bouibaabdo\/sanad\/releases\/download\/v\d+\.\d+\.\d+\/Sanad-Setup-\d+\.\d+\.\d+\.exe$/.test(update.url);
+    if (!isNewer || lastNotifiedUpdate === update.version || !validUrl) return;
+    lastNotifiedUpdate = update.version;
+    const language = savedPreferences.language || 'fr';
+    const title = { fr: 'Mise à jour de Sanad disponible', en: 'Sanad update available', ar: 'تحديث جديد لسند' }[language];
+    const message = { fr: `La version ${update.version} de Sanad est disponible.`, en: `Sanad ${update.version} is available.`, ar: `كاينة نسخة جديدة من سند (${update.version}).` }[language];
+    const detail = {
+      fr: 'Téléchargez puis installez la mise à jour. Vos préférences et l’identifiant de votre appareil seront conservés.',
+      en: 'Download and install the update. Your preferences and device ID will be kept.',
+      ar: 'نزّل وثبّت التحديث. الإعدادات ومعرّف الجهاز غيبقاو محفوظين.',
+    }[language];
     const result = await dialog.showMessageBox(mainWindow, {
-      type: 'info', title: 'تحديث جديد لسند',
-      message: `كاينة نسخة جديدة من سند (${update.version}).`,
-      detail: 'نزّل وثبّت التحديث باش تستافد من التحسينات. إعداداتك ومعرّف جهازك كيبقاو محفوظين.',
-      buttons: ['تنزيل التحديث', 'لاحقًا'], defaultId: 0, cancelId: 1, noLink: true,
+      type: 'info',
+      title, message, detail,
+      buttons: { fr: ['Télécharger', 'Plus tard'], en: ['Download', 'Later'], ar: ['تنزيل التحديث', 'لاحقًا'] }[language],
+      defaultId: 0, cancelId: 1, noLink: true,
     });
     if (result.response === 0) await shell.openExternal(update.url);
   } catch { /* Updates are optional; offline startup should remain immediate. */ }
 }
 
 function registerControlHandlers() {
+  ipcMain.handle('app:get-version', (event) => isTrustedWindow(event) ? app.getVersion() : '');
   ipcMain.handle('device:get', (event) => {
     if (!isTrustedWindow(event)) return { ok: false };
     return deviceIdentity ? { ok: true, id: deviceIdentity.id, password: deviceIdentity.password } : { ok: false, error: deviceIdentityError || 'هوية الجهاز غير متاحة.' };
@@ -345,21 +364,21 @@ function registerControlHandlers() {
     const choices = [];
     const options = [];
     if (requested.includes('mouse') && requested.includes('keyboard')) {
-      choices.push({ label: 'الفأرة ولوحة المفاتيح', scopes: ['mouse', 'keyboard'] });
+      choices.push({ label: { fr: 'Souris et clavier', en: 'Mouse and keyboard', ar: 'الفأرة ولوحة المفاتيح' }[savedPreferences.language || 'fr'], scopes: ['mouse', 'keyboard'] });
     }
-    if (requested.includes('mouse')) choices.push({ label: 'الفأرة فقط', scopes: ['mouse'] });
-    if (requested.includes('keyboard')) choices.push({ label: 'لوحة المفاتيح فقط', scopes: ['keyboard'] });
+    if (requested.includes('mouse')) choices.push({ label: { fr: 'Souris uniquement', en: 'Mouse only', ar: 'الفأرة فقط' }[savedPreferences.language || 'fr'], scopes: ['mouse'] });
+    if (requested.includes('keyboard')) choices.push({ label: { fr: 'Clavier uniquement', en: 'Keyboard only', ar: 'لوحة المفاتيح فقط' }[savedPreferences.language || 'fr'], scopes: ['keyboard'] });
     choices.forEach((choice) => options.push(choice.label));
     const denyIndex = options.length;
-    options.push('رفض');
+    options.push({ fr: 'Refuser', en: 'Decline', ar: 'رفض' }[savedPreferences.language || 'fr']);
     approvalDialogOpen = true;
     let result;
     try {
       result = await dialog.showMessageBox(mainWindow, {
         type: 'question',
-        title: 'طلب صلاحية التحكم',
-        message: 'الطرف المتصل يطلب التحكم في هذا الجهاز.',
-        detail: 'اختر الصلاحيات التي تسمح بها. يمكنك إيقافها من التطبيق في أي وقت.',
+        title: { fr: 'Demande de contrôle à distance', en: 'Remote control request', ar: 'طلب صلاحية التحكم' }[savedPreferences.language || 'fr'],
+        message: { fr: 'La personne connectée demande le contrôle de cet appareil.', en: 'The connected person is requesting control of this device.', ar: 'الطرف المتصل يطلب التحكم في هذا الجهاز.' }[savedPreferences.language || 'fr'],
+        detail: { fr: 'Choisissez les autorisations à accorder. Vous pouvez les révoquer à tout moment.', en: 'Choose which permissions to allow. You can revoke them at any time.', ar: 'اختار الصلاحيات اللي تسمح بها. تقدر توقفها فأي وقت.' }[savedPreferences.language || 'fr'],
         buttons: options,
         defaultId: denyIndex,
         cancelId: denyIndex,
@@ -438,10 +457,10 @@ app.whenReady().then(async () => {
       if (!sources.length) { callback({}); return; }
       const answer = await dialog.showMessageBox(mainWindow, {
         type: 'question',
-        title: 'مشاركة الشاشة',
-        message: 'طلب الطرف الآخر مشاهدة الشاشة الرئيسية لهذا الجهاز.',
-        detail: 'ستظهر الشاشة فقط بعد موافقتك. يمكنك إيقاف المشاركة من شريط التطبيق أو زر إنهاء الجلسة.',
-        buttons: ['مشاركة الشاشة', 'رفض'],
+        title: { fr: 'Partage d’écran', en: 'Screen sharing', ar: 'مشاركة الشاشة' }[savedPreferences.language || 'fr'],
+        message: { fr: 'La personne connectée demande à voir l’écran principal de cet appareil.', en: 'The connected person is requesting to view this device’s main screen.', ar: 'الطرف الآخر طلب يشوف الشاشة الرئيسية ديال هاد الجهاز.' }[savedPreferences.language || 'fr'],
+        detail: { fr: 'L’écran ne sera visible qu’après votre accord. Arrêtez le partage depuis l’application ou avec le bouton de fin de session.', en: 'The screen is visible only after you approve. Stop sharing in the app or with the end session button.', ar: 'الشاشة غتبان غير من بعد الموافقة. تقدر توقف المشاركة من التطبيق أو زر إنهاء الجلسة.' }[savedPreferences.language || 'fr'],
+        buttons: { fr: ['Partager l’écran', 'Refuser'], en: ['Share screen', 'Decline'], ar: ['مشاركة الشاشة', 'رفض'] }[savedPreferences.language || 'fr'],
         defaultId: 1,
         cancelId: 1,
         noLink: true,
@@ -455,6 +474,7 @@ app.whenReady().then(async () => {
   registerControlHandlers();
   createWindow();
   setTimeout(() => void checkForUpdates(), 2500);
+  setInterval(() => void checkForUpdates(), 6 * 60 * 60 * 1000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
