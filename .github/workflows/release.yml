@@ -14,7 +14,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - name: Verify tag matches app version
         shell: pwsh
         run: |
