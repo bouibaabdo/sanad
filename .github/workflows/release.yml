@@ -1,0 +1,23 @@
+name: Desktop release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:installer
+      - name: Publish installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create $env:GITHUB_REF_NAME release/Sanad-Setup-${{ github.ref_name.TrimStart('v') }}.exe --title "Sanad ${{ github.ref_name }}" --notes "تحديث سند: حفظ الإعدادات، إظهار معرّف الجهاز، ودعم العربية والفرنسية."

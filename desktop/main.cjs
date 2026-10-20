@@ -3,7 +3,7 @@ const { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFi
 const { createServer } = require('node:http');
 const { extname, resolve, sep } = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { app, BrowserWindow, desktopCapturer, dialog, ipcMain, safeStorage, screen, session } = require('electron');
+const { app, BrowserWindow, desktopCapturer, dialog, ipcMain, safeStorage, screen, session, shell } = require('electron');
 const { randomBytes } = require('node:crypto');
 
 let mainWindow;
@@ -261,6 +261,28 @@ function createWindow() {
   mainWindow.loadURL(appUrl());
 }
 
+async function checkForUpdates() {
+  if (!app.isPackaged) return;
+  try {
+    const response = await fetch('https://sanad.abouiba93.workers.dev/remote-assist/update.json', { signal: AbortSignal.timeout(5000), cache: 'no-store' });
+    if (!response.ok) return;
+    const update = await response.json();
+    const current = app.getVersion().split('.').map(Number);
+    const latest = String(update.version || '').split('.').map(Number);
+    const newer = latest.length === 3 && current.length === 3 && latest.some((part, index) => Number.isInteger(part) && part > (current[index] || 0))
+      && latest.findIndex((part, index) => part !== (current[index] || 0)) >= 0
+      && latest[latest.findIndex((part, index) => part !== (current[index] || 0))] > (current[latest.findIndex((part, index) => part !== (current[index] || 0))] || 0);
+    if (!newer || typeof update.url !== 'string' || !update.url.startsWith('https://github.com/bouibaabdo/sanad/releases/download/')) return;
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'info', title: 'تحديث جديد لسند',
+      message: `كاينة نسخة جديدة من سند (${update.version}).`,
+      detail: 'نزّل وثبّت التحديث باش تستافد من التحسينات. إعداداتك ومعرّف جهازك كيبقاو محفوظين.',
+      buttons: ['تنزيل التحديث', 'لاحقًا'], defaultId: 0, cancelId: 1, noLink: true,
+    });
+    if (result.response === 0) await shell.openExternal(update.url);
+  } catch { /* Updates are optional; offline startup should remain immediate. */ }
+}
+
 function registerControlHandlers() {
   ipcMain.handle('device:get', (event) => {
     if (!isTrustedWindow(event)) return { ok: false };
@@ -432,6 +454,7 @@ app.whenReady().then(async () => {
 
   registerControlHandlers();
   createWindow();
+  setTimeout(() => void checkForUpdates(), 2500);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
