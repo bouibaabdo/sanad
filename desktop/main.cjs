@@ -25,6 +25,43 @@ let remoteSignalOrigin = '';
 let deviceIdentity = null;
 let deviceIdentityError = '';
 let deviceSessionActive = false;
+let savedPreferences = {};
+const defaultSignalOrigin = 'https://sanad.abouiba93.workers.dev';
+
+function preferencesPath() { return path.join(app.getPath('userData'), 'preferences.json'); }
+
+function loadPreferences() {
+  try {
+    savedPreferences = JSON.parse(readFileSync(preferencesPath(), 'utf8'));
+    if (!savedPreferences || typeof savedPreferences !== 'object' || Array.isArray(savedPreferences)) savedPreferences = {};
+  } catch { savedPreferences = {}; }
+  if (typeof savedPreferences.signalOrigin === 'string' && isAllowedSignalOrigin(savedPreferences.signalOrigin)) {
+    remoteSignalOrigin = savedPreferences.signalOrigin;
+  }
+  if (!remoteSignalOrigin) {
+    try {
+      const legacy = JSON.parse(readFileSync(path.join(app.getPath('userData'), 'signal-server.json'), 'utf8')).origin;
+      if (typeof legacy === 'string' && isAllowedSignalOrigin(legacy)) remoteSignalOrigin = legacy;
+    } catch { /* No server has been saved yet. */ }
+  }
+  if (!remoteSignalOrigin) remoteSignalOrigin = defaultSignalOrigin;
+  savedPreferences = { quality: 'balanced', fps: '30', fit: 'fit', dark: false, ...savedPreferences, signalOrigin: remoteSignalOrigin };
+}
+
+function savePreferences(value) {
+  const next = {
+    quality: ['economy', 'balanced', 'high'].includes(value?.quality) ? value.quality : 'balanced',
+    fps: ['15', '30', '60'].includes(String(value?.fps)) ? String(value.fps) : '30',
+    fit: ['fit', 'fill', 'native'].includes(value?.fit) ? value.fit : 'fit',
+    dark: Boolean(value?.dark),
+    signalOrigin: typeof value?.signalOrigin === 'string' && isAllowedSignalOrigin(value.signalOrigin) ? value.signalOrigin : '',
+  };
+  mkdirSync(path.dirname(preferencesPath()), { recursive: true });
+  writeFileSync(preferencesPath(), JSON.stringify(next), 'utf8');
+  savedPreferences = next;
+  remoteSignalOrigin = next.signalOrigin;
+  return next;
+}
 
 function saveDeviceIdentity() {
   if (!deviceIdentity || !safeStorage.isEncryptionAvailable()) throw new Error('التخزين الآمن لكلمة مرور الجهاز غير متاح.');
@@ -111,11 +148,6 @@ async function forwardSignalRequest(request, response, requestUrl, fallback) {
 async function startPackagedServer() {
   const appRoot = app.getAppPath();
   const distDir = resolve(appRoot, 'dist');
-  const signalConfigPath = resolve(app.getPath('userData'), 'signal-server.json');
-  try {
-    const savedOrigin = JSON.parse(readFileSync(signalConfigPath, 'utf8')).origin;
-    if (typeof savedOrigin === 'string' && isAllowedSignalOrigin(savedOrigin)) remoteSignalOrigin = savedOrigin;
-  } catch { /* A missing configuration means local-only signalling. */ }
   const { createSignalingMiddleware } = await import(pathToFileURL(resolve(appRoot, 'remote-assist/signaling.js')).href);
   const signaling = createSignalingMiddleware();
   const mimeTypes = new Map([
@@ -274,13 +306,14 @@ function registerControlHandlers() {
   ipcMain.handle('signal:get-origin', (event) => isTrustedWindow(event) ? remoteSignalOrigin : '');
   ipcMain.handle('signal:set-origin', (event, origin) => {
     if (!isTrustedWindow(event) || (origin !== '' && !isAllowedSignalOrigin(origin))) return { ok: false };
-    remoteSignalOrigin = origin;
-    if (app.isPackaged) {
-      const configPath = path.join(app.getPath('userData'), 'signal-server.json');
-      mkdirSync(path.dirname(configPath), { recursive: true });
-      writeFileSync(configPath, JSON.stringify({ origin }), 'utf8');
-    }
+    savePreferences({ ...savedPreferences, signalOrigin: origin });
     return { ok: true, origin };
+  });
+  ipcMain.handle('settings:get', (event) => isTrustedWindow(event) ? savedPreferences : null);
+  ipcMain.handle('settings:save', (event, value) => {
+    if (!isTrustedWindow(event) || !value || typeof value !== 'object' || Array.isArray(value)) return { ok: false };
+    if (value.signalOrigin && !isAllowedSignalOrigin(value.signalOrigin)) return { ok: false, error: 'رابط خادم الاتصال غير صالح.' };
+    return { ok: true, settings: savePreferences(value) };
   });
   ipcMain.handle('control:request', async (event, requestedScopes) => {
     if (!isTrustedWindow(event) || !inputReady) return { granted: false, scopes: [], reason: 'input-unavailable' };
@@ -365,6 +398,7 @@ function registerControlHandlers() {
 }
 
 app.whenReady().then(async () => {
+  loadPreferences();
   try { loadDeviceIdentity(); }
   catch (error) { deviceIdentityError = error.message || 'تعذر إنشاء هوية هذا الجهاز.'; }
   if (app.isPackaged) await startPackagedServer();

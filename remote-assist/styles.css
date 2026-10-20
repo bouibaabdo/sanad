@@ -12,3 +12,12 @@
 @media(max-width:570px){.video-wrap,.video-wrap.native-mode{height:clamp(230px,48vh,480px);min-height:230px}.display-toolbar .button{font-size:10px;padding:8px}}
 .setting-field input{width:min(230px,45%);min-width:150px;font:11px ui-monospace,monospace;color:#53627a;background:#fff;border:1px solid #e2e7f0;border-radius:8px;padding:9px 10px;outline:none}.setting-field input:focus{border-color:#8296ec;box-shadow:0 0 0 3px #526bdb14}.signal-origin-status{display:block;font-size:10px;color:#8592a6;padding:3px 0 9px}
 .dark-mode .setting-field input{background:#26334a;color:#e7ecf5;border-color:#3b4961}.dark-mode .signal-origin-status{color:#a4b0c4}
+
+/* Readable device identity and predictable keyboard focus. */
+[hidden]{display:none!important}
+.device-session-block{margin-top:16px;padding:18px;border:1px solid #d9e2f2;border-radius:14px;background:#f7f9ff}
+.device-session-block label{font-size:13px;font-weight:700;margin-top:10px}
+.device-session-block input{font-size:15px;min-height:42px}
+.identity-help{display:block;color:#64748b;line-height:1.8;margin-top:12px}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid #6276f3;outline-offset:3px}
+.setting-field:has(#language-select){margin-bottom:12px}

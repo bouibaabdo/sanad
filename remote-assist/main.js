@@ -19,7 +19,7 @@ const pressedRemoteButtons = new Set();
 const pressedRemoteKeys = new Set();
 let lastRemoteMoveAt = 0;
 const maxFileSize = 100 * 1024 * 1024;
-const settingDefaults = { quality: 'balanced', fps: '30', fit: 'fit', dark: false, signalOrigin: '' };
+const settingDefaults = { quality: 'balanced', fps: '30', fit: 'fit', dark: false, language: 'ar', signalOrigin: '' };
 let settings = { ...settingDefaults };
 let signalOriginReady = Promise.resolve();
 
@@ -29,11 +29,13 @@ try {
   if (!['15', '30', '60'].includes(String(settings.fps))) settings.fps = settingDefaults.fps;
   if (!['fit', 'fill', 'native'].includes(settings.fit)) settings.fit = settingDefaults.fit;
   settings.dark = Boolean(settings.dark);
+  settings.language = settings.language === 'fr' ? 'fr' : 'ar';
   settings.signalOrigin = typeof settings.signalOrigin === 'string' ? settings.signalOrigin : '';
 } catch { settings = { ...settingDefaults }; }
 
 function saveSettings() {
-  try { localStorage.setItem('sanad-settings', JSON.stringify(settings)); } catch { /* Settings remain available until the page closes. */ }
+  try { localStorage.setItem('sanad-settings', JSON.stringify(settings)); } catch { /* Desktop preferences are saved by the main process. */ }
+  if (window.sanadDesktop?.isDesktop) void window.sanadDesktop.savePreferences(settings).catch(() => {});
 }
 
 function captureConstraints() {
@@ -58,8 +60,42 @@ function applyViewSettings() {
   $('fps-select').value = String(settings.fps);
   $('dark-mode').checked = settings.dark;
   $('signal-origin').value = settings.signalOrigin;
+  $('language-select').value = settings.language;
+  applyLanguage();
   $('.signal-origin-setting').hidden = !window.sanadDesktop?.isDesktop;
   $('signal-origin-status').hidden = !window.sanadDesktop?.isDesktop;
+}
+
+const frenchText = new Map([
+  ['اتصل وساعد عن بُعد', 'Assistance à distance'], ['أداة مستقلة ومجانية', 'Outil indépendant et gratuit'],
+  ['الإعدادات', 'Paramètres'], ['غير متصل', 'Hors ligne'], ['مشاركة الشاشة بموافقتك', 'Partage d’écran avec votre accord'],
+  ['خلي المساعدة توصل ليك،', 'Laissez-nous vous aider,'], ['فينما كنت.', 'où que vous soyez.'],
+  ['ابدأ جلسة جديدة', 'Démarrer une session'], ['كيف تريد الاتصال؟', 'Comment souhaitez-vous vous connecter ?'],
+  ['أنت تقدم المساعدة', 'Vous aidez quelqu’un'], ['شارك شاشتك', 'Partager votre écran'],
+  ['ابدأ مشاركة الشاشة', 'Démarrer le partage d’écran'], ['أنت تتلقى المساعدة', 'Vous recevez de l’aide'],
+  ['انضم إلى جلسة', 'Rejoindre une session'], ['رمز الجلسة', 'Code de session'],
+  ['انضم للجلسة', 'Rejoindre la session'], ['معاينة الشاشة', 'Aperçu de l’écran'],
+  ['نقل الملفات', 'Transfert de fichiers'], ['جودة الصورة', 'Qualité d’image'], ['معدل الإطارات', 'Fréquence d’images'],
+  ['خادم الاتصال', 'Serveur de connexion'], ['المظهر الداكن', 'Mode sombre'], ['إعدادات الجلسة', 'Paramètres de session'],
+  ['تم', 'Terminé'], ['التحكم في الجهاز', 'Contrôle de l’appareil'], ['طلب التحكم', 'Demander le contrôle'],
+]);
+function applyLanguage() {
+  const isFrench = settings.language === 'fr';
+  document.documentElement.lang = isFrench ? 'fr' : 'ar';
+  document.documentElement.dir = isFrench ? 'ltr' : 'rtl';
+  document.querySelectorAll('[data-ar]').forEach((element) => {
+    const text = isFrench ? element.dataset.fr : element.dataset.ar;
+    if (text) element.textContent = text;
+  });
+  if (isFrench) {
+    for (const element of document.querySelectorAll('h1,h2,h3,.eyebrow,.card-kicker,button,label,summary,.nav-item,.sidebar-note strong')) {
+      const original = element.dataset.ar || element.textContent.trim();
+      if (!element.dataset.ar) element.dataset.ar = original;
+      if (frenchText.has(original)) element.textContent = frenchText.get(original);
+    }
+  } else {
+    for (const element of document.querySelectorAll('[data-ar]')) element.textContent = element.dataset.ar;
+  }
 }
 
 function setStatus(message, connected = false) {
@@ -366,8 +402,13 @@ $('dark-mode').addEventListener('change', () => {
   saveSettings();
   applyViewSettings();
 });
+$('language-select').addEventListener('change', () => {
+  settings.language = $('language-select').value === 'fr' ? 'fr' : 'ar';
+  saveSettings();
+  applyLanguage();
+});
 $('signal-origin').addEventListener('change', async () => {
-  const value = $('signal-origin').value.trim().replace(/\/$/, '');
+  const value = $('signal-origin').value.trim();
   if (!value) {
     settings.signalOrigin = '';
     await window.sanadDesktop?.setSignalOrigin('');
@@ -377,15 +418,17 @@ $('signal-origin').addEventListener('change', async () => {
   }
   try {
     const parsed = new URL(value);
-    if (parsed.origin !== value || !['https:', 'http:'].includes(parsed.protocol)) throw new Error('invalid-origin');
+    const allowedPath = ['', '/', '/remote-assist', '/remote-assist/'].includes(parsed.pathname);
+    if (!allowedPath || parsed.search || parsed.hash || parsed.username || parsed.password || !['https:', 'http:'].includes(parsed.protocol)) throw new Error('invalid-origin');
     if (parsed.protocol === 'http:' && !['localhost', '127.0.0.1'].includes(parsed.hostname)) throw new Error('https-required');
     settings.signalOrigin = parsed.origin;
     $('signal-origin').value = settings.signalOrigin;
-    await window.sanadDesktop?.setSignalOrigin(settings.signalOrigin);
+    const saved = await window.sanadDesktop?.setSignalOrigin(settings.signalOrigin);
+    if (window.sanadDesktop?.isDesktop && !saved?.ok) throw new Error('save-failed');
     $('signal-origin-status').textContent = settings.signalOrigin ? `الخادم المشترك: ${settings.signalOrigin}` : 'خليه فارغ للتشغيل المحلي.';
     saveSettings();
   } catch {
-    $('signal-origin-status').textContent = 'دخل رابط HTTPS صحيح، أو localhost للتجربة المحلية.';
+    $('signal-origin-status').textContent = 'دخل رابط الموقع HTTPS، مع أو بلا /remote-assist/. المحلي مسموح للتجربة.';
   }
 });
 $('fullscreen-button').addEventListener('click', async () => {
@@ -410,8 +453,14 @@ $('floating-window-button').addEventListener('click', async () => {
 });
 applyViewSettings();
 if (window.sanadDesktop?.isDesktop) {
-  signalOriginReady = window.sanadDesktop.getSignalOrigin().then((origin) => {
-    settings.signalOrigin = origin || '';
+  signalOriginReady = Promise.all([window.sanadDesktop.getSignalOrigin(), window.sanadDesktop.getPreferences()]).then(([origin, preferences]) => {
+    const localOrigin = settings.signalOrigin;
+    settings = { ...settings, ...(preferences || {}) };
+    settings.signalOrigin = origin || preferences?.signalOrigin || localOrigin || 'https://sanad.abouiba93.workers.dev';
+    if (!origin && settings.signalOrigin) return window.sanadDesktop.setSignalOrigin(settings.signalOrigin).then(() => {
+      saveSettings(); applyViewSettings();
+      $('signal-origin-status').textContent = `الخادم المشترك: ${settings.signalOrigin}`;
+    });
     saveSettings();
     applyViewSettings();
     $('signal-origin-status').textContent = origin ? `الخادم المشترك: ${origin}` : 'خليه فارغ للتشغيل المحلي.';
@@ -421,6 +470,8 @@ if (window.sanadDesktop?.isDesktop) {
     deviceIdentity = identity;
     $('device-id-output').value = identity.id;
     $('device-password-output').value = identity.password;
+    $('device-session-block').hidden = false;
+    $('host-status').textContent = 'المعرّف ثابت لهذا الجهاز. شغّل مشاركة الشاشة، ثم أعطِ المعرّف وكلمة المرور للشخص الموثوق.';
   }).catch(() => {});
 }
 
@@ -462,7 +513,7 @@ $('start-session').addEventListener('click', async () => {
       if (!registration?.ok) throw new Error(registration?.error || 'تعذر تشغيل الاتصال بهذا الجهاز.');
       activeDeviceSessionId = registration.id;
       $('device-session-block').hidden = false;
-      $('host-status').textContent = 'الجهاز متاح مؤقتًا باستعمال المعرّف وكلمة المرور الثابتين.';
+      setStatus('مشاركة الشاشة تعمل. الجهاز ينتظر اتصال الطرف الآخر باستعمال المعرّف وكلمة المرور.');
     } else {
       const session = await api('/api/sessions', {
         method: 'POST',

@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('sanadDesktop', {
   isDesktop: true,
   getSignalOrigin: () => ipcRenderer.invoke('signal:get-origin'),
   setSignalOrigin: (origin) => ipcRenderer.invoke('signal:set-origin', origin),
+  getPreferences: () => ipcRenderer.invoke('settings:get'),
+  savePreferences: (settings) => ipcRenderer.invoke('settings:save', settings),
   getDeviceIdentity: () => ipcRenderer.invoke('device:get'),
   setDevicePassword: (password) => ipcRenderer.invoke('device:set-password', password),
   registerDeviceSession: (offer) => ipcRenderer.invoke('device:register', offer),
