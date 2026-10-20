@@ -20,4 +20,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: gh release create $env:GITHUB_REF_NAME release/Sanad-Setup-${{ github.ref_name.TrimStart('v') }}.exe --title "Sanad ${{ github.ref_name }}" --notes "تحديث سند: حفظ الإعدادات، إظهار معرّف الجهاز، ودعم العربية والفرنسية."
+        run: gh release create $env:GITHUB_REF_NAME release/Sanad-Setup-0.2.1.exe --title "Sanad ${{ github.ref_name }}" --notes "تحديث سند: حفظ الإعدادات، إظهار معرّف الجهاز، ودعم العربية والفرنسية."
