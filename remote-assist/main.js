@@ -24,6 +24,9 @@ let settings = { ...settingDefaults };
 let signalOriginReady = Promise.resolve();
 const originalTextNodes = new WeakMap();
 let languageObserver;
+let detachedViewerWindow = null;
+let detachedViewerReturnParent = null;
+let detachedViewerReturnSibling = null;
 
 try {
   settings = { ...settingDefaults, ...JSON.parse(localStorage.getItem('sanad-settings') || '{}') };
@@ -88,7 +91,7 @@ const phraseTranslations = {
   'Rejoindre la session': ['Join session', 'انضم للجلسة'], 'Saisissez le code complet reçu de votre correspondant.': ['Enter the full code you received.', 'دخل الرمز الكامل اللي توصّلتي به.'],
   'Session en direct': ['Live session', 'جلسة مباشرة'], 'Aperçu de l’écran': ['Screen preview', 'معاينة الشاشة'], 'En attente': ['Waiting', 'في انتظار المشاركة'],
   'Terminer la session': ['End session', 'إنهاء الجلسة'], 'Affichage': ['Display', 'العرض'], 'Adapter à la fenêtre': ['Fit to window', 'ملاءمة النافذة'], 'Remplir la fenêtre': ['Fill window', 'ملء النافذة'], 'Taille réelle': ['Actual size', 'الحجم الأصلي'],
-  'Fenêtre flottante': ['Floating window', 'نافذة عائمة'], '▣ Fenêtre flottante': ['▣ Floating window', '▣ نافذة عائمة'], '⛶ Plein écran': ['⛶ Full screen', '⛶ ملء الشاشة'], 'L’écran distant s’affichera ici': ['The remote screen will appear here', 'الشاشة البعيدة غادي تبان هنا'],
+  'Fenêtre flottante': ['Separate window', 'نافذة مستقلة'], 'Fenêtre indépendante': ['Separate window', 'نافذة مستقلة'], '▣ Fenêtre indépendante': ['▣ Separate window', '▣ نافذة مستقلة'], '⛶ Plein écran': ['⛶ Full screen', '⛶ ملء الشاشة'], 'L’écran distant s’affichera ici': ['The remote screen will appear here', 'الشاشة البعيدة غادي تبان هنا'],
   'Démarrez un partage ou rejoignez une session active': ['Start sharing or join an active session', 'بدا المشاركة أو انضم لجلسة خدامة'], 'Autorisations de contrôle': ['Control permissions', 'صلاحيات التحكم'], 'Demandez l’autorisation à la personne devant l’appareil.': ['Ask the person at the device for permission.', 'طلب الإذن من الشخص اللي قدام الجهاز.'],
   'Souris': ['Mouse', 'الفأرة'], 'Clavier': ['Keyboard', 'لوحة المفاتيح'], 'Demander le contrôle': ['Request control', 'طلب التحكم'], 'Autorisations accordées': ['Granted permissions', 'الصلاحيات المسموحة'], 'Le contrôle est désactivé.': ['Control is disabled.', 'التحكم متوقف.'], 'Révoquer l’accès': ['Revoke access', 'إلغاء الصلاحية'],
   'Connexion directe chiffrée': ['Encrypted direct connection', 'اتصال مباشر ومشفّر'], 'Envoyez un fichier à l’appareil connecté. Taille maximale : 100 Mo.': ['Send a file to the connected device. Maximum size: 100 MB.', 'صيفط ملف للجهاز المتصل. الحجم الأقصى: 100 ميغا.'], 'Choisir un fichier': ['Choose a file', 'اختار ملف'], 'Envoyer le fichier': ['Send file', 'إرسال الملف'], 'Aucun fichier transféré': ['No files transferred', 'مازال ما تنقل حتى ملف'], '⇅ Aucun fichier transféré': ['⇅ No files transferred', '⇅ مازال ما تنقل حتى ملف'],
@@ -97,6 +100,9 @@ const phraseTranslations = {
 };
 
 const runtimeTranslations = {
+  'تم تغيير كلمة المرور. أرسل الجديدة للشخص الموثوق فقط.': ['Mot de passe changé. Communiquez le nouveau mot de passe uniquement à une personne de confiance.', 'Password changed. Share the new password only with someone you trust.'],
+  'تعذر تغيير كلمة المرور.': ['Impossible de changer le mot de passe.', 'Could not change the password.'],
+  'أوقف مشاركة الشاشة قبل تغيير كلمة المرور.': ['Arrêtez le partage d’écran avant de changer le mot de passe.', 'Stop screen sharing before changing the password.'],
   'اتصال نشط': ['Connecté', 'Connected'], 'بانتظار المشاركة': ['En attente', 'Waiting'], 'متصل وجاهز لنقل الملفات': ['Connecté, prêt au transfert de fichiers', 'Connected and ready to transfer files'],
   'النظام ما قدرش يطبق هاد الجودة؛ مستمر بالجودة المتاحة.': ['Impossible d’appliquer cette qualité ; la qualité disponible est conservée.', 'Could not apply this quality; continuing with the available quality.'],
   'التحكم يحتاج إلى تطبيق سطح المكتب على الجهاز المضيف.': ['Le contrôle nécessite l’application Sanad sur l’appareil hôte.', 'Control requires the Sanad desktop app on the host device.'], 'بانتظار اختيارك للصلاحيات في نافذة التأكيد…': ['En attente de votre choix dans la fenêtre d’autorisation…', 'Waiting for your choice in the permission dialog…'], 'الشاشة المشتركة': ['Écran partagé', 'Shared screen'], 'يصل البث': ['Flux en cours de réception', 'Stream arriving'],
@@ -159,12 +165,14 @@ function applyLanguage() {
     'device-password-output': { 'aria-label': ['Mot de passe permanent', 'Permanent password', 'كلمة المرور الثابتة'] },
     'copy-device-id': { 'aria-label': ['Copier l’ID', 'Copy ID', 'نسخ المعرّف'], title: ['Copier l’ID', 'Copy ID', 'نسخ المعرّف'] },
     'copy-device-password': { 'aria-label': ['Copier le mot de passe', 'Copy password', 'نسخ كلمة المرور'], title: ['Copier le mot de passe', 'Copy password', 'نسخ كلمة المرور'] },
+    'regenerate-device-password': { 'aria-label': ['Régénérer le mot de passe', 'Regenerate password', 'تغيير كلمة المرور'], title: ['Régénérer le mot de passe', 'Regenerate password', 'تغيير كلمة المرور'] },
     'copy-session': { 'aria-label': ['Copier le code de session', 'Copy session code', 'نسخ رمز الجلسة'] },
   };
   const languageIndex = { fr: 0, en: 1, ar: 2 }[language];
   for (const [id, attributes] of Object.entries(attributeLabels)) {
     for (const [attribute, values] of Object.entries(attributes)) $(id).setAttribute(attribute, values[languageIndex]);
   }
+  refreshDetachedViewerLabels();
 }
 
 function setStatus(message, connected = false) {
@@ -533,25 +541,148 @@ $('signal-origin').addEventListener('change', async () => {
     $('signal-origin-status').textContent = 'دخل رابط الموقع HTTPS، مع أو بلا /remote-assist/. المحلي مسموح للتجربة.';
   }
 });
+function localized(fr, en, ar) { return ({ fr, en, ar })[settings.language] || fr; }
+
+function refreshDetachedViewerLabels() {
+  if (!detachedViewerWindow || detachedViewerWindow.closed) return;
+  const viewerDocument = detachedViewerWindow.document;
+  const title = viewerDocument.getElementById('detached-viewer-title');
+  const fullscreen = viewerDocument.getElementById('detached-viewer-fullscreen');
+  if (title) title.textContent = localized('Écran partagé · Sanad', 'Shared screen · Sanad', 'الشاشة المشتركة · سند');
+  if (fullscreen) fullscreen.textContent = viewerDocument.fullscreenElement
+    ? localized('⤢ Quitter le plein écran', '⤢ Exit full screen', '⤢ الخروج من ملء الشاشة')
+    : localized('⛶ Plein écran', '⛶ Full screen', '⛶ ملء الشاشة');
+}
+
+function restoreDetachedViewer() {
+  const videoWrap = $('video-wrap');
+  if (detachedViewerReturnParent && videoWrap.parentElement !== detachedViewerReturnParent) {
+    const sibling = detachedViewerReturnSibling?.parentElement === detachedViewerReturnParent ? detachedViewerReturnSibling : null;
+    detachedViewerReturnParent.insertBefore(videoWrap, sibling);
+  }
+  videoWrap.classList.remove('detached-mode');
+  detachedViewerWindow = null;
+  detachedViewerReturnParent = null;
+  detachedViewerReturnSibling = null;
+  $('floating-window-button').textContent = localized('▣ Fenêtre indépendante', '▣ Separate window', '▣ نافذة مستقلة');
+}
+
+async function toggleDetachedViewerFullscreen(viewerDocument) {
+  if (viewerDocument.fullscreenElement) await viewerDocument.exitFullscreen();
+  else await viewerDocument.documentElement.requestFullscreen();
+}
+
+async function openDetachedViewer() {
+  if (detachedViewerWindow && !detachedViewerWindow.closed) {
+    detachedViewerWindow.focus();
+    return;
+  }
+
+  const video = $('remote-video');
+  if (!video.srcObject || !video.classList.contains('visible')) {
+    $('join-status').textContent = 'خاص الشاشة توصل قبل ما تفتح النافذة العائمة.';
+    return;
+  }
+
+  try {
+    if (window.documentPictureInPicture?.requestWindow) {
+      const viewer = await window.documentPictureInPicture.requestWindow({ width: 1280, height: 800 });
+      detachedViewerWindow = viewer;
+      const videoWrap = $('video-wrap');
+      detachedViewerReturnParent = videoWrap.parentElement;
+      detachedViewerReturnSibling = videoWrap.nextSibling;
+
+      const stylesheet = viewer.document.createElement('link');
+      stylesheet.rel = 'stylesheet';
+      stylesheet.href = document.querySelector('link[rel="stylesheet"]').href;
+      viewer.document.head.append(stylesheet);
+      viewer.document.title = localized('Sanad — écran distant', 'Sanad — remote screen', 'سند — الشاشة البعيدة');
+      viewer.document.documentElement.lang = settings.language;
+      viewer.document.documentElement.dir = settings.language === 'ar' ? 'rtl' : 'ltr';
+
+      const viewerStyle = viewer.document.createElement('style');
+      viewerStyle.textContent = `
+        html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#11182b; }
+        body { display:flex; flex-direction:column; }
+        .detached-viewer-toolbar { height:46px; flex:0 0 46px; display:flex; align-items:center; gap:12px; padding:0 15px; background:#fff; color:#20243a; border-bottom:1px solid #e7e9f1; font:600 13px "Segoe UI",Arial,sans-serif; }
+        .detached-viewer-toolbar span { flex:1; }
+        .detached-viewer-toolbar button { border:1px solid #e3e6ef; border-radius:7px; background:#f3f5fa; color:#58627d; padding:7px 11px; font:600 12px "Segoe UI",Arial,sans-serif; cursor:pointer; }
+        .video-wrap.detached-mode { width:100%; height:auto; min-height:0; flex:1; border-radius:0; }
+        .video-wrap.detached-mode video { width:100%; height:100%; object-fit:contain; }
+        .video-wrap.detached-mode.fill-mode video { object-fit:cover; }
+        .video-wrap.detached-mode.native-mode { height:auto; flex:1; }
+        .video-wrap.detached-mode:fullscreen { width:100vw; height:100vh; flex:1; }
+        .video-wrap.detached-mode:fullscreen video { max-height:100vh; }
+        html:fullscreen .detached-viewer-toolbar { display:none; }
+      `;
+      viewer.document.head.append(viewerStyle);
+
+      const toolbar = viewer.document.createElement('header');
+      toolbar.className = 'detached-viewer-toolbar';
+      const title = viewer.document.createElement('span');
+      title.id = 'detached-viewer-title';
+      title.textContent = localized('Écran partagé · Sanad', 'Shared screen · Sanad', 'الشاشة المشتركة · سند');
+      const fullscreen = viewer.document.createElement('button');
+      fullscreen.id = 'detached-viewer-fullscreen';
+      fullscreen.type = 'button';
+      fullscreen.textContent = localized('⛶ Plein écran', '⛶ Full screen', '⛶ ملء الشاشة');
+      fullscreen.addEventListener('click', () => toggleDetachedViewerFullscreen(viewer.document).catch(() => {}));
+      viewer.document.addEventListener('fullscreenchange', () => {
+        refreshDetachedViewerLabels();
+        $('fullscreen-button').textContent = viewer.document.fullscreenElement
+          ? localized('⤢ Quitter le plein écran', '⤢ Exit full screen', '⤢ الخروج من ملء الشاشة')
+          : localized('⛶ Plein écran', '⛶ Full screen', '⛶ ملء الشاشة');
+      });
+      toolbar.append(title, fullscreen);
+      viewer.document.body.append(toolbar, videoWrap);
+      videoWrap.classList.add('detached-mode');
+      viewer.addEventListener('pagehide', restoreDetachedViewer, { once: true });
+      $('floating-window-button').textContent = localized('Fermer la fenêtre', 'Close window', 'إغلاق النافذة');
+      viewer.focus();
+      return;
+    }
+
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA && video.requestPictureInPicture) {
+      await video.requestPictureInPicture();
+      return;
+    }
+    $('join-status').textContent = 'هاد النظام ما سمحش بفتح نافذة الشاشة العائمة.';
+  } catch {
+    restoreDetachedViewer();
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA && video.requestPictureInPicture && !document.pictureInPictureElement) {
+      await video.requestPictureInPicture().catch(() => {});
+      if (document.pictureInPictureElement) return;
+    }
+    $('join-status').textContent = 'هاد النظام ما سمحش بفتح نافذة الشاشة العائمة.';
+  }
+}
+
 $('fullscreen-button').addEventListener('click', async () => {
   try {
-    if (document.fullscreenElement) await document.exitFullscreen();
+    if (detachedViewerWindow && !detachedViewerWindow.closed) await toggleDetachedViewerFullscreen(detachedViewerWindow.document);
+    else if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+      await $('video-wrap').requestFullscreen();
+    }
+    else if (document.fullscreenElement) await document.exitFullscreen();
     else await $('video-wrap').requestFullscreen();
   } catch { $('join-status').textContent = 'تعذر تفعيل ملء الشاشة في هاد البيئة.'; }
 });
 document.addEventListener('fullscreenchange', () => {
-  $('fullscreen-button').textContent = document.fullscreenElement ? '⤢ الخروج من ملء الشاشة' : '⛶ ملء الشاشة';
+  $('fullscreen-button').textContent = document.fullscreenElement
+    ? localized('⤢ Quitter le plein écran', '⤢ Exit full screen', '⤢ الخروج من ملء الشاشة')
+    : localized('⛶ Plein écran', '⛶ Full screen', '⛶ ملء الشاشة');
 });
-$('floating-window-button').disabled = !('pictureInPictureEnabled' in document) || !document.pictureInPictureEnabled;
-$('remote-video').addEventListener('enterpictureinpicture', () => { $('floating-window-button').textContent = 'إغلاق النافذة العائمة'; });
-$('remote-video').addEventListener('leavepictureinpicture', () => { $('floating-window-button').textContent = '▣ نافذة عائمة'; });
+$('remote-video').addEventListener('enterpictureinpicture', () => { $('floating-window-button').textContent = localized('Fermer la fenêtre', 'Close window', 'إغلاق النافذة'); });
+$('remote-video').addEventListener('leavepictureinpicture', () => { $('floating-window-button').textContent = localized('▣ Fenêtre indépendante', '▣ Separate window', '▣ نافذة مستقلة'); });
 $('floating-window-button').addEventListener('click', async () => {
-  const video = $('remote-video');
-  try {
-    if (document.pictureInPictureElement) await document.exitPictureInPicture();
-    else if (video.readyState >= HTMLMediaElement.HAVE_METADATA) await video.requestPictureInPicture();
-    else $('join-status').textContent = 'خاص الشاشة توصل قبل ما تفتح النافذة العائمة.';
-  } catch { $('join-status').textContent = 'هاد النظام ما سمحش بفتح نافذة الشاشة العائمة.'; }
+  if ((detachedViewerWindow && !detachedViewerWindow.closed) || document.pictureInPictureElement) {
+    if (detachedViewerWindow && !detachedViewerWindow.closed) detachedViewerWindow.close();
+    else await document.exitPictureInPicture().catch(() => {});
+    restoreDetachedViewer();
+    return;
+  }
+  await openDetachedViewer();
 });
 applyViewSettings();
 if (window.sanadDesktop?.isDesktop) {
@@ -588,6 +719,7 @@ $('start-session').addEventListener('click', async () => {
   }
   try {
     $('start-session').disabled = true;
+    $('regenerate-device-password').disabled = true;
     setStatus('اختر الشاشة أو النافذة التي تريد مشاركتها…');
     screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     await applyCaptureSettings();
@@ -619,6 +751,7 @@ $('start-session').addEventListener('click', async () => {
       const registration = await window.sanadDesktop.registerDeviceSession(pc.localDescription);
       if (!registration?.ok) throw new Error(registration?.error || 'تعذر تشغيل الاتصال بهذا الجهاز.');
       activeDeviceSessionId = registration.id;
+      $('regenerate-device-password').disabled = true;
       $('device-session-block').hidden = false;
       setStatus('مشاركة الشاشة تعمل. الجهاز ينتظر اتصال الطرف الآخر باستعمال المعرّف وكلمة المرور.');
     } else {
@@ -639,6 +772,7 @@ $('start-session').addEventListener('click', async () => {
     peer = null;
     if (activeDeviceSessionId) await window.sanadDesktop?.unregisterDeviceSession().catch(() => {});
     activeDeviceSessionId = null;
+    $('regenerate-device-password').disabled = false;
     isHost = false;
     screenStream?.getTracks().forEach((track) => track.stop());
     screenStream = null;
@@ -718,6 +852,24 @@ $('join-device-session').addEventListener('click', async () => {
 $('copy-session').addEventListener('click', () => copyText(sessionCode || '', 'host-status'));
 $('copy-device-id').addEventListener('click', () => copyText(deviceIdentity?.id || $('device-id-output').value, 'host-status'));
 $('copy-device-password').addEventListener('click', () => copyText(deviceIdentity?.password || $('device-password-output').value, 'host-status'));
+$('regenerate-device-password').addEventListener('click', async () => {
+  if (!window.sanadDesktop?.isDesktop || activeDeviceSessionId || screenStream) return;
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const password = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  const button = $('regenerate-device-password');
+  button.disabled = true;
+  try {
+    const result = await window.sanadDesktop.setDevicePassword(password);
+    if (!result?.ok) throw new Error(result?.error || 'تعذر تغيير كلمة المرور.');
+    if (deviceIdentity) deviceIdentity.password = password;
+    $('device-password-output').value = password;
+    $('host-status').textContent = 'تم تغيير كلمة المرور. أرسل الجديدة للشخص الموثوق فقط.';
+  } catch (error) {
+    $('host-status').textContent = error.message || 'تعذر تغيير كلمة المرور.';
+  } finally {
+    button.disabled = Boolean(activeDeviceSessionId);
+  }
+});
 $('device-password-toggle').addEventListener('click', () => {
   const field = $('device-password-output');
   field.type = field.type === 'password' ? 'text' : 'password';
@@ -760,6 +912,8 @@ $('end-session').addEventListener('click', async () => {
   isHost = false;
   answerApplied = false;
   screenStream?.getTracks().forEach((track) => track.stop());
+  if (detachedViewerWindow && !detachedViewerWindow.closed) detachedViewerWindow.close();
+  restoreDetachedViewer();
   if (document.pictureInPictureElement) await document.exitPictureInPicture().catch(() => {});
   screenStream = null;
   $('remote-video').srcObject = null;
@@ -771,6 +925,7 @@ $('end-session').addEventListener('click', async () => {
   $('viewer-controls').hidden = true;
   $('host-controls').hidden = !window.sanadDesktop?.isDesktop;
   $('end-session').hidden = true;
+  $('regenerate-device-password').disabled = false;
   $('start-session').disabled = false;
   $('join-session').disabled = false;
   $('join-device-session').disabled = false;

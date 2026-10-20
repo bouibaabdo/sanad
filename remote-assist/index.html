@@ -20,7 +20,7 @@
           <a class="nav-item" href="#transfer"><span>⇧</span> Transfert de fichiers</a>
         </nav>
         <div class="sidebar-note"><span class="note-shield">✓</span><strong>Connexion sécurisée</strong><p>Le partage d’écran et le contrôle nécessitent votre autorisation.</p></div>
-        <div class="sidebar-bottom"><span class="online-dot"></span> Version <span id="app-version">0.2.3</span></div>
+        <div class="sidebar-bottom"><span class="online-dot"></span> Version <span id="app-version">0.2.4</span></div>
       </aside>
 
       <main id="top">
@@ -51,7 +51,7 @@
                   <div class="credential-value"><input id="device-id-output" readonly aria-label="ID Sanad de cet appareil" /><button class="copy-icon" id="copy-device-id" type="button" aria-label="Copier l’ID" title="Copier l’ID">▢</button></div>
                   <div class="credential-divider"></div>
                   <label for="device-password-output">Mot de passe permanent</label>
-                  <div class="credential-value"><input id="device-password-output" type="password" readonly aria-label="Mot de passe permanent" /><button class="copy-icon" id="device-password-toggle" type="button" aria-label="Afficher le mot de passe" title="Afficher le mot de passe">◉</button><button class="copy-icon" id="copy-device-password" type="button" aria-label="Copier le mot de passe" title="Copier le mot de passe">▢</button></div>
+                  <div class="credential-value"><input id="device-password-output" type="password" readonly aria-label="Mot de passe permanent" /><button class="copy-icon" id="device-password-toggle" type="button" aria-label="Afficher le mot de passe" title="Afficher le mot de passe">◉</button><button class="copy-icon" id="regenerate-device-password" type="button" aria-label="Régénérer le mot de passe" title="Régénérer le mot de passe">↻</button><button class="copy-icon" id="copy-device-password" type="button" aria-label="Copier le mot de passe" title="Copier le mot de passe">▢</button></div>
                 </div>
                 <small class="identity-help">Gardez Sanad ouvert. La connexion démarre quand vous autorisez le partage de votre écran.</small>
               </div>
@@ -83,7 +83,7 @@
 
           <section class="preview-panel" aria-label="Aperçu de l’écran distant">
             <div class="preview-head"><div><span class="eyebrow">Session en direct</span><h2 id="preview-title">Aperçu de l’écran</h2></div><div class="preview-actions"><span class="live-badge"><i></i> <span id="live-label">En attente</span></span><button class="button danger-button" id="end-session" type="button" hidden>Terminer la session</button></div></div>
-            <div class="display-toolbar"><label for="fit-select">Affichage</label><select id="fit-select" aria-label="Mode d’affichage"><option value="fit">Adapter à la fenêtre</option><option value="fill">Remplir la fenêtre</option><option value="native">Taille réelle</option></select><span class="toolbar-spacer"></span><button class="button secondary" id="floating-window-button" type="button">▣ Fenêtre flottante</button><button class="button secondary" id="fullscreen-button" type="button">⛶ Plein écran</button></div>
+            <div class="display-toolbar"><label for="fit-select">Affichage</label><select id="fit-select" aria-label="Mode d’affichage"><option value="fit">Adapter à la fenêtre</option><option value="fill">Remplir la fenêtre</option><option value="native">Taille réelle</option></select><span class="toolbar-spacer"></span><button class="button secondary" id="floating-window-button" type="button">▣ Fenêtre indépendante</button><button class="button secondary" id="fullscreen-button" type="button">⛶ Plein écran</button></div>
             <div class="video-wrap" id="video-wrap"><video id="remote-video" autoplay playsinline tabindex="0"></video><div class="video-placeholder" id="video-placeholder"><span class="placeholder-icon">▣</span><strong>L’écran distant s’affichera ici</strong><small>Démarrez un partage ou rejoignez une session active</small></div></div>
             <div class="control-panel viewer-controls" id="viewer-controls" hidden><div class="control-copy"><span class="control-shield">⌖</span><div><strong>Autorisations de contrôle</strong><small id="viewer-control-status">Demandez l’autorisation à la personne devant l’appareil.</small></div></div><div class="control-options"><label><input type="checkbox" id="request-mouse" checked /> Souris</label><label><input type="checkbox" id="request-keyboard" checked /> Clavier</label></div><button class="button primary" id="request-control" type="button">Demander le contrôle</button></div>
             <div class="control-panel host-controls" id="host-controls" hidden><div class="control-copy"><span class="control-shield">✓</span><div><strong>Autorisations accordées</strong><small id="host-control-status">Le contrôle est désactivé.</small></div></div><button class="button secondary" id="revoke-control" type="button" hidden>Révoquer l’accès</button></div>

@@ -1,7 +1,7 @@
 {
   "name": "sanad-remote",
   "private": true,
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "تطبيق سند المستقل للمساعدة عن بُعد ومشاركة الشاشة.",
   "author": "Sanad",
   "type": "module",
