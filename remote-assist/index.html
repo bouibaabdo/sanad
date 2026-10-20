@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f7fb" />
+    <title>سند — مساعدة عن بُعد</title>
+    <link rel="stylesheet" href="/remote-assist/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#top" aria-label="سند، الرئيسية">
+          <span class="brand-mark">س</span>
+          <span><strong>سند</strong><small>مساعدة عن بُعد</small></span>
+        </a>
+        <div class="side-label">مساحة العمل</div>
+        <a class="nav-item active" href="#connection"><span>⌁</span> الاتصال</a>
+        <a class="nav-item" href="#transfer"><span>⇧</span> نقل الملفات</a>
+        <div class="sidebar-note"><span class="note-shield">✓</span><strong>اتصال مباشر</strong><p>الشاشة والملفات تنتقل بين الجهازين عبر WebRTC.</p></div>
+        <div class="sidebar-bottom"><span class="online-dot"></span> نسخة تجريبية · 0.1.0</div>
+      </aside>
+
+      <main id="top">
+        <header class="topbar"><div><span class="eyebrow">أداة مستقلة ومجانية</span><h1>اتصل وساعد عن بُعد</h1></div><div class="topbar-actions"><div class="topbar-status"><span class="status-dot"></span><span id="connection-label">غير متصل</span></div><button class="button secondary settings-open" id="settings-open" type="button" aria-label="الإعدادات">⚙ الإعدادات</button></div></header>
+        <section class="welcome-card" id="connection">
+          <div class="welcome-copy"><span class="eyebrow light">مشاركة الشاشة بموافقتك</span><h2>خلي المساعدة توصل ليك،<br />فينما كنت.</h2><p>شارك الشاشة مع شخص تثق به أو انضم إلى جلسته. اختيار الشاشة يبدأ من جهازك.</p></div>
+          <div class="welcome-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="screen-illustration"><span class="screen-bar"><i></i><i></i><i></i></span><span class="screen-body"><b></b><i></i><i></i></span></div><span class="floating-lock">⌑</span></div>
+        </section>
+
+        <div class="section-heading"><div><span class="eyebrow">ابدأ جلسة جديدة</span><h2>كيف تريد الاتصال؟</h2></div><span class="step-chip"><b>01</b> اختيار الدور</span></div>
+        <section class="role-grid">
+          <article class="role-card host-card">
+            <div class="role-icon purple">▣</div><span class="card-kicker">أنت تقدم المساعدة</span><h3>شارك شاشتك</h3><p>اختر نافذة أو شاشة كاملة، ثم أرسل رمز الجلسة للطرف الآخر.</p>
+            <button class="button primary" id="start-session"><span>▣</span> ابدأ مشاركة الشاشة <b>←</b></button>
+            <div class="notice share-picker-note">باش مايبانش شريط <span dir="ltr">«Partage de l’onglet»</span> ديال المتصفح، اختار الشاشة كاملة من نافذة المشاركة، أو شغّل تطبيق سند لسطح المكتب. المتصفح هو اللي كيتحكم فهاد الشريط.</div>
+            <div class="inline-status" id="host-status">ستظهر معاينة الشاشة بعد الموافقة.</div>
+            <div class="field-block" id="session-block" hidden><label for="session-code-output">رمز الجلسة — أرسله للطرف الآخر</label><input id="session-code-output" readonly /><button class="button secondary" id="copy-session" type="button">نسخ رمز الجلسة</button></div>
+            <div class="field-block device-session-block" id="device-session-block" hidden><label for="device-id-output">المعرّف الثابت ديال هاد الجهاز</label><input id="device-id-output" readonly /><button class="button secondary" id="copy-device-id" type="button">نسخ المعرّف</button><label for="device-password-output">كلمة المرور الثابتة — شاركها مع الشخص الموثوق</label><div class="password-row"><input id="device-password-output" type="password" readonly /><button class="button secondary" id="device-password-toggle" type="button">إظهار</button></div><button class="button secondary" id="copy-device-password" type="button">نسخ كلمة المرور</button></div>
+          </article>
+          <article class="role-card join-card">
+            <div class="role-icon blue">↗</div><span class="card-kicker">أنت تتلقى المساعدة</span><h3>انضم إلى جلسة</h3><p>ألصق رمز الجلسة الذي وصلك. ستظهر الشاشة بعد اكتمال الاتصال.</p>
+            <div class="field-block"><label for="session-code-input">رمز الجلسة</label><input id="session-code-input" autocomplete="off" placeholder="مثال: a1b2c3d4.ABCD…" /><button class="button primary" id="join-session" type="button">انضم للجلسة <b>←</b></button></div>
+            <details class="device-login"><summary>الدخول بمعرّف الجهاز وكلمة المرور الثابتة</summary><div class="field-block"><label for="device-id-input">معرّف الجهاز</label><input id="device-id-input" autocomplete="off" placeholder="16 رقمًا/حرفًا" dir="ltr" /><label for="device-password-input">كلمة المرور</label><input id="device-password-input" type="password" autocomplete="current-password" /><button class="button primary" id="join-device-session" type="button">اتصل بالجهاز <b>←</b></button><div class="inline-status" id="device-join-status">خاص الجهاز يكون مشغّل سند ومشارك الشاشة.</div></div></details>
+            <div class="inline-status" id="join-status">لا تحتاج إلى إنشاء حساب.</div>
+          </article>
+        </section>
+
+        <section class="preview-panel" aria-label="معاينة الشاشة"><div class="preview-head"><div><span class="eyebrow">البث المباشر</span><h2 id="preview-title">معاينة الشاشة</h2></div><div class="preview-actions"><span class="live-badge"><i></i> <span id="live-label">بانتظار المشاركة</span></span><button class="button secondary" id="end-session" type="button" hidden>إنهاء الجلسة</button></div></div><div class="display-toolbar"><label for="fit-select">عرض الشاشة</label><select id="fit-select" aria-label="طريقة عرض الشاشة"><option value="fit">ملاءمة النافذة</option><option value="fill">ملء النافذة</option><option value="native">الحجم الأصلي</option></select><span class="toolbar-spacer"></span><button class="button secondary" id="floating-window-button" type="button">▣ نافذة عائمة</button><button class="button secondary" id="fullscreen-button" type="button">⛶ ملء الشاشة</button></div><div class="video-wrap" id="video-wrap"><video id="remote-video" autoplay playsinline tabindex="0"></video><div class="video-placeholder" id="video-placeholder"><span class="placeholder-icon">▣</span><strong>الشاشة ستظهر هنا</strong><small>ابدأ مشاركة الشاشة أو انضم إلى جلسة نشطة</small></div></div>
+          <div class="control-panel viewer-controls" id="viewer-controls" hidden><div class="control-copy"><span class="control-shield">⌖</span><div><strong>التحكم في الجهاز</strong><small id="viewer-control-status">طلب الإذن من صاحب الجهاز لتبدأ.</small></div></div><div class="control-options"><label><input type="checkbox" id="request-mouse" checked /> الفأرة</label><label><input type="checkbox" id="request-keyboard" checked /> لوحة المفاتيح</label></div><button class="button primary" id="request-control" type="button">طلب التحكم</button></div>
+          <div class="control-panel host-controls" id="host-controls" hidden><div class="control-copy"><span class="control-shield">✓</span><div><strong>صلاحيات التحكم</strong><small id="host-control-status">التحكم غير مسموح.</small></div></div><button class="button secondary" id="revoke-control" type="button" hidden>إيقاف التحكم</button></div>
+        </section>
+
+        <section class="transfer-panel" id="transfer"><div class="transfer-heading"><div class="role-icon green">⇧</div><div><span class="eyebrow">مباشرة بين الجهازين</span><h2>نقل الملفات</h2><p>اختر ملفًا لإرساله للطرف المتصل. النقل مشفّر عبر اتصال WebRTC.</p></div></div><div class="transfer-controls"><label class="button secondary file-picker" for="file-input">اختيار ملف <span>＋</span></label><input id="file-input" type="file" hidden /><button class="button primary" id="send-file" disabled>إرسال الملف <b>←</b></button></div><div class="transfer-list" id="transfer-list"><div class="empty-transfer"><span>⇅</span>لا توجد ملفات منقولة بعد</div></div></section>
+
+        <footer class="footnote"><span>سند مشروع مستقل ومفتوح المصدر.</span><span>لا تشارك رموز الاتصال إلا مع أشخاص تثق بهم.</span></footer>
+      </main>
+    </div>
+    <dialog class="settings-dialog" id="settings-dialog"><form method="dialog"><button class="dialog-close" aria-label="إغلاق">×</button><span class="eyebrow">تخصيص سند</span><h2>إعدادات الجلسة</h2><p>اختياراتك كتتحفظ على هاد الجهاز. جودة البث كتتطبق على مشاركة الشاشة الحالية أو الجاية.</p><label class="setting-field" for="quality-select"><span><strong>جودة الصورة</strong><small>الجودة الأعلى كتستهلك إنترنت أكثر.</small></span><select id="quality-select"><option value="balanced">متوازنة · موصى بها</option><option value="high">عالية</option><option value="economy">اقتصادية</option></select></label><label class="setting-field" for="fps-select"><span><strong>معدل الإطارات</strong><small>معدل أعلى كيعطي حركة أنعم.</small></span><select id="fps-select"><option value="15">15 إطار/ث</option><option value="30">30 إطار/ث</option><option value="60">60 إطار/ث</option></select></label><label class="setting-field signal-origin-setting" for="signal-origin"><span><strong>خادم الاتصال</strong><small>رابط HTTPS ديال الموقع اللي غادي يستعملو الطرف الآخر.</small></span><input id="signal-origin" type="url" placeholder="https://support.example.com" dir="ltr" autocomplete="url" /></label><small class="signal-origin-status" id="signal-origin-status">خليه فارغ للتشغيل المحلي.</small><label class="setting-toggle" for="dark-mode"><span><strong>المظهر الداكن</strong><small>تغيير ألوان الواجهة على هاد الجهاز.</small></span><input id="dark-mode" type="checkbox" /></label><div class="settings-note">مشاركة الشاشة والتحكم كيبقاو خاضعين لموافقة صاحب الجهاز.</div><button class="button primary settings-done" value="close">تم</button></form></dialog>
+    <script type="module" src="/remote-assist/main.js"></script>
+  </body>
+</html>

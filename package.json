@@ -1,0 +1,43 @@
+{
+  "name": "sanad-remote",
+  "private": true,
+  "version": "0.1.0",
+  "description": "تطبيق سند المستقل للمساعدة عن بُعد ومشاركة الشاشة.",
+  "author": "Sanad",
+  "type": "module",
+  "main": "desktop/main.cjs",
+  "engines": { "node": "^20.19.0 || >=22.12.0" },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server.mjs",
+    "desktop": "npm run build && node desktop/run.mjs",
+    "desktop:installer": "npm run build && electron-builder --win nsis --x64",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "build": {
+    "appId": "org.sanad.remote",
+    "productName": "Sanad",
+    "asar": false,
+    "directories": { "output": "release" },
+    "files": ["desktop/**/*", "dist/**/*", "remote-assist/signaling.js", "package.json"],
+    "artifactName": "Sanad-Setup-${version}.${ext}",
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "سند للمساعدة عن بُعد"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.9.1",
+    "electron-builder": "^26.15.3",
+    "vite": "^8.1.5",
+    "wrangler": "^4.45.0"
+  },
+  "dependencies": { "@nut-tree-fork/nut-js": "^4.2.6" },
+  "allowScripts": { "electron@44.9.1": true }
+}
