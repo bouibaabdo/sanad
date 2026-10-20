@@ -450,7 +450,14 @@ $('start-session').addEventListener('click', async () => {
     isHost = true;
     answerApplied = false;
     if (window.sanadDesktop?.isDesktop) {
-      if (!deviceIdentity) throw new Error('تعذر تحميل معرّف هذا الجهاز. أعد تشغيل تطبيق سند.');
+      if (!deviceIdentity) {
+        deviceIdentity = await window.sanadDesktop.getDeviceIdentity();
+        if (deviceIdentity?.ok) {
+          $('device-id-output').value = deviceIdentity.id;
+          $('device-password-output').value = deviceIdentity.password;
+        }
+      }
+      if (!deviceIdentity?.ok) throw new Error(deviceIdentity?.error || 'تعذر تحميل معرّف هذا الجهاز. أعد تشغيل تطبيق سند.');
       const registration = await window.sanadDesktop.registerDeviceSession(pc.localDescription);
       if (!registration?.ok) throw new Error(registration?.error || 'تعذر تشغيل الاتصال بهذا الجهاز.');
       activeDeviceSessionId = registration.id;

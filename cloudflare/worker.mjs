@@ -219,7 +219,7 @@ export class SignalRoom extends DurableObject {
           expiresAt,
         };
         await this.ctx.storage.put('device', device);
-        await this.ctx.storage.put('connectAttempts', []);
+        await this.ctx.storage.put('connectAttempts', {});
         await this.ctx.storage.setAlarm(expiresAt);
         return json({ registered: true, expiresAt }, 201);
       } catch (error) { return fail(error.status || 500, error.status ? error.message : 'Signaling request failed.'); }
@@ -229,11 +229,13 @@ export class SignalRoom extends DurableObject {
       try {
         const payload = await readJson(request);
         if (typeof payload.password !== 'string' || payload.password.length > 128 || !device) return fail(403, 'Device ID or password is incorrect, or the device is offline.');
-        let attempts = await this.ctx.storage.get('connectAttempts') || [];
-        attempts = attempts.filter((time) => now - time < CONNECT_WINDOW);
+        const addressKey = toHex(await digest(request.headers.get('CF-Connecting-IP') || 'unknown'));
+        const allAttempts = await this.ctx.storage.get('connectAttempts') || {};
+        let attempts = (allAttempts[addressKey] || []).filter((time) => now - time < CONNECT_WINDOW);
         if (attempts.length >= MAX_CONNECTS) return fail(429, 'Too many password attempts. Try again later.');
         attempts.push(now);
-        await this.ctx.storage.put('connectAttempts', attempts);
+        allAttempts[addressKey] = attempts;
+        await this.ctx.storage.put('connectAttempts', allAttempts);
         const supplied = await passwordDigest(payload.password, device.passwordSalt);
         if (!equalBytes(encoder.encode(supplied), encoder.encode(device.passwordDigest))) return fail(403, 'Device ID or password is incorrect, or the device is offline.');
         if (device.guestSecretDigest) return fail(409, 'This device is already handling a connection request.');
